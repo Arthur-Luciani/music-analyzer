@@ -1,0 +1,500 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body, .root {
+    font-family: 'IBM Plex Sans', monospace;
+    color: var(--color-text-primary);
+    background: transparent;
+  }
+
+  .root { padding: 8px 0 24px; }
+
+  .header {
+    display: flex; align-items: baseline; gap: 12px;
+    border-bottom: 1px solid var(--color-border-tertiary);
+    padding-bottom: 14px; margin-bottom: 24px;
+  }
+
+  .header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; font-weight: 500; letter-spacing: .04em;
+    color: var(--color-text-primary); text-transform: uppercase;
+  }
+
+  .header .sub {
+    font-size: 11px; color: var(--color-text-tertiary);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .phase-row {
+    display: grid; grid-template-columns: 80px 1fr; gap: 0;
+    margin-bottom: 0;
+  }
+
+  .phase-label {
+    padding: 16px 0 0;
+    display: flex; flex-direction: column; align-items: flex-start;
+    gap: 4px; position: relative;
+  }
+
+  .phase-label::after {
+    content: ''; position: absolute; right: 0; top: 20px; bottom: -16px;
+    width: 1px; background: var(--color-border-tertiary);
+  }
+
+  .phase-row:last-child .phase-label::after { display: none; }
+
+  .phase-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 500; letter-spacing: .1em;
+    color: var(--color-text-tertiary); text-transform: uppercase;
+  }
+
+  .phase-tag {
+    font-size: 10px; font-weight: 500; letter-spacing: .06em;
+    padding: 2px 7px; border-radius: 3px; text-transform: uppercase;
+  }
+
+  .tag-setup  { background: rgba(55,138,221,.12); color: #185FA5; }
+  .tag-core   { background: rgba(29,158,117,.12); color: #0F6E56; }
+  .tag-player { background: rgba(186,117,23,.12);  color: #854F0B; }
+  .tag-next   { background: rgba(127,119,221,.12); color: #534AB7; }
+
+  @media (prefers-color-scheme: dark) {
+    .tag-setup  { background: rgba(55,138,221,.18); color: #85B7EB; }
+    .tag-core   { background: rgba(29,158,117,.18); color: #5DCAA5; }
+    .tag-player { background: rgba(186,117,23,.18);  color: #EF9F27; }
+    .tag-next   { background: rgba(127,119,221,.18); color: #AFA9EC; }
+  }
+
+  .phase-content {
+    padding: 16px 0 16px 20px;
+    border-bottom: 1px solid var(--color-border-tertiary);
+  }
+
+  .phase-row:last-child .phase-content { border-bottom: none; }
+
+  .phase-title {
+    font-size: 13px; font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 6px;
+  }
+
+  .phase-desc {
+    font-size: 12px; color: var(--color-text-secondary); line-height: 1.6;
+    margin-bottom: 12px;
+  }
+
+  .tasks {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .task {
+    display: grid; grid-template-columns: 16px 1fr auto;
+    gap: 8px; align-items: start;
+    font-size: 12px; color: var(--color-text-primary);
+    cursor: pointer; padding: 7px 10px; border-radius: 5px;
+    border: 1px solid transparent;
+    transition: background .15s, border-color .15s;
+  }
+
+  .task:hover {
+    background: var(--color-background-secondary);
+    border-color: var(--color-border-tertiary);
+  }
+
+  .task-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--color-border-secondary);
+    margin-top: 4px; flex-shrink: 0;
+    transition: background .2s;
+  }
+
+  .task:hover .task-dot { background: var(--color-text-tertiary); }
+
+  .task-text { line-height: 1.5; }
+
+  .task-ref {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--color-text-tertiary);
+    white-space: nowrap; margin-top: 2px;
+    text-decoration: none;
+    padding: 1px 5px; border-radius: 3px;
+    border: 1px solid var(--color-border-tertiary);
+    transition: border-color .15s, color .15s;
+  }
+
+  .task-ref:hover {
+    border-color: var(--color-border-secondary);
+    color: var(--color-text-secondary);
+  }
+
+  .stack-row {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;
+  }
+
+  .stack-pill {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; padding: 2px 8px; border-radius: 12px;
+    border: 1px solid var(--color-border-tertiary);
+    color: var(--color-text-secondary);
+    background: var(--color-background-secondary);
+  }
+
+  .risk-block {
+    margin-top: 10px; padding: 10px 12px;
+    border-radius: 6px; border-left: 2px solid;
+    background: var(--color-background-secondary);
+  }
+
+  .risk-warn  { border-color: #EF9F27; }
+  .risk-info  { border-color: #378ADD; }
+
+  .risk-title {
+    font-size: 10px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: .07em; margin-bottom: 4px;
+  }
+
+  .risk-warn .risk-title { color: #BA7517; }
+  .risk-info .risk-title { color: #185FA5; }
+
+  @media (prefers-color-scheme: dark) {
+    .risk-warn .risk-title { color: #EF9F27; }
+    .risk-info .risk-title { color: #85B7EB; }
+  }
+
+  .risk-text { font-size: 11px; color: var(--color-text-secondary); line-height: 1.5; }
+
+  .section-break {
+    margin: 24px 0 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .section-break-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--color-text-tertiary); white-space: nowrap;
+  }
+
+  .section-break-line {
+    flex: 1; height: 1px; background: var(--color-border-tertiary);
+  }
+
+  .arch-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px; margin-bottom: 16px;
+  }
+
+  .arch-card {
+    padding: 12px 14px; border-radius: 7px;
+    border: 1px solid var(--color-border-tertiary);
+    background: var(--color-background-secondary);
+  }
+
+  .arch-card-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--color-text-tertiary);
+    margin-bottom: 8px;
+  }
+
+  .arch-item {
+    font-size: 11px; color: var(--color-text-secondary);
+    line-height: 1.7; display: flex; align-items: baseline; gap: 6px;
+  }
+
+  .arch-item::before {
+    content: '→'; font-size: 10px;
+    color: var(--color-text-tertiary); flex-shrink: 0;
+  }
+
+  .timeline-bar {
+    display: flex; gap: 0; margin-top: 20px;
+    border-radius: 6px; overflow: hidden;
+    height: 8px; border: 1px solid var(--color-border-tertiary);
+  }
+
+  .tbar-seg { height: 100%; }
+  .tb-1 { width: 25%; background: rgba(55,138,221,.45); }
+  .tb-2 { width: 30%; background: rgba(29,158,117,.45); }
+  .tb-3 { width: 25%; background: rgba(186,117,23,.45);  }
+  .tb-4 { width: 20%; background: rgba(127,119,221,.45); }
+
+  .timeline-legend {
+    display: flex; gap: 16px; margin-top: 8px; flex-wrap: wrap;
+  }
+
+  .tleg-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 10px; color: var(--color-text-tertiary);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .tleg-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .td-1 { background: rgba(55,138,221,.6); }
+  .td-2 { background: rgba(29,158,117,.6); }
+  .td-3 { background: rgba(186,117,23,.6); }
+  .td-4 { background: rgba(127,119,221,.6); }
+</style>
+
+<div class="root">
+
+  <div class="header">
+    <h1>Music Analyzer — MVP</h1>
+    <span class="sub">Plano de implementação</span>
+  </div>
+
+  <!-- FASE 1 -->
+  <div class="phase-row">
+    <div class="phase-label">
+      <span class="phase-num">Fase 1</span>
+      <span class="phase-tag tag-setup">Setup</span>
+    </div>
+    <div class="phase-content">
+      <div class="phase-title">Ambiente e estrutura do projeto</div>
+      <div class="phase-desc">Montar o alicerce técnico com Docker, Python isolado, GPU configurada e estrutura de pastas. Erros aqui custam caro depois — validar CUDA funcionando antes de qualquer código de negócio.</div>
+      <div class="tasks">
+        <div class="task" onclick="openLink('https://docs.docker.com/compose/')">
+          <div class="task-dot"></div>
+          <span class="task-text">Criar <code>docker-compose.yml</code> com serviço Python (GPU passthrough via nvidia-docker) e serviço frontend</span>
+          <a class="task-ref" href="https://docs.docker.com/compose/" target="_blank">docker compose</a>
+        </div>
+        <div class="task" onclick="openLink('https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html')">
+          <div class="task-dot"></div>
+          <span class="task-text">Instalar NVIDIA Container Toolkit para expor a GTX 1650 ao container</span>
+          <a class="task-ref" href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html" target="_blank">nvidia-docker</a>
+        </div>
+        <div class="task" onclick="openLink('https://pytorch.org/get-started/locally/')">
+          <div class="task-dot"></div>
+          <span class="task-text">Instalar PyTorch com CUDA 11.8 e validar <code>torch.cuda.is_available()</code></span>
+          <a class="task-ref" href="https://pytorch.org/get-started/locally/" target="_blank">pytorch.org</a>
+        </div>
+        <div class="task" onclick="openLink('https://fastapi.tiangolo.com/')">
+          <div class="task-dot"></div>
+          <span class="task-text">Inicializar projeto FastAPI com estrutura <code>backend/</code>, <code>frontend/</code>, <code>storage/</code></span>
+          <a class="task-ref" href="https://fastapi.tiangolo.com/" target="_blank">fastapi</a>
+        </div>
+      </div>
+      <div class="stack-row">
+        <span class="stack-pill">Docker</span>
+        <span class="stack-pill">nvidia-docker</span>
+        <span class="stack-pill">Python 3.10</span>
+        <span class="stack-pill">FastAPI</span>
+        <span class="stack-pill">CUDA 11.8</span>
+      </div>
+      <div class="risk-block risk-warn">
+        <div class="risk-title">Risco</div>
+        <div class="risk-text">Driver NVIDIA desatualizado faz <code>torch.cuda.is_available()</code> retornar <code>False</code> silenciosamente. Testar isoladamente antes de continuar.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 2 -->
+  <div class="phase-row">
+    <div class="phase-label">
+      <span class="phase-num">Fase 2</span>
+      <span class="phase-tag tag-core">Core</span>
+    </div>
+    <div class="phase-content">
+      <div class="phase-title">Pipeline de separação e download</div>
+      <div class="phase-desc">O coração do projeto. Demucs separa os stems, yt-dlp faz o download, Spotipy lê as playlists. Processamento assíncrono para não bloquear a API enquanto a GPU trabalha.</div>
+      <div class="tasks">
+        <div class="task" onclick="openLink('https://github.com/facebookresearch/demucs')">
+          <div class="task-dot"></div>
+          <span class="task-text">Integrar Demucs (<code>htdemucs</code>) com wrapper Python que aceita caminho de arquivo e retorna paths dos stems gerados</span>
+          <a class="task-ref" href="https://github.com/facebookresearch/demucs" target="_blank">demucs</a>
+        </div>
+        <div class="task" onclick="openLink('https://github.com/yt-dlp/yt-dlp')">
+          <div class="task-dot"></div>
+          <span class="task-text">Implementar downloader com yt-dlp que recebe query <code>"artista + título"</code> e retorna WAV em <code>storage/raw/</code></span>
+          <a class="task-ref" href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a>
+        </div>
+        <div class="task" onclick="openLink('https://spotipy.readthedocs.io/')">
+          <div class="task-dot"></div>
+          <span class="task-text">Usar Spotipy para ler playlists via API oficial do Spotify e extrair metadados (nome, artista, duração)</span>
+          <a class="task-ref" href="https://spotipy.readthedocs.io/" target="_blank">spotipy</a>
+        </div>
+        <div class="task" onclick="openLink('https://fastapi.tiangolo.com/tutorial/background-tasks/')">
+          <div class="task-dot"></div>
+          <span class="task-text">Criar endpoint <code>POST /process</code> que enfileira job de separação com <code>BackgroundTasks</code> do FastAPI e retorna <code>job_id</code></span>
+          <a class="task-ref" href="https://fastapi.tiangolo.com/tutorial/background-tasks/" target="_blank">background tasks</a>
+        </div>
+        <div class="task" onclick="openLink('https://fastapi.tiangolo.com/advanced/websockets/')">
+          <div class="task-dot"></div>
+          <span class="task-text">Implementar WebSocket <code>/ws/{job_id}</code> para streaming de progresso em tempo real ao frontend</span>
+          <a class="task-ref" href="https://fastapi.tiangolo.com/advanced/websockets/" target="_blank">websocket</a>
+        </div>
+      </div>
+      <div class="stack-row">
+        <span class="stack-pill">Demucs htdemucs</span>
+        <span class="stack-pill">yt-dlp</span>
+        <span class="stack-pill">Spotipy</span>
+        <span class="stack-pill">asyncio</span>
+        <span class="stack-pill">WebSocket</span>
+      </div>
+      <div class="risk-block risk-warn">
+        <div class="risk-title">Risco</div>
+        <div class="risk-text">Músicas longas (+6min) podem estourar os 4GB de VRAM. Usar <code>--segment 7</code> no Demucs como padrão defensivo desde o início.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 3 -->
+  <div class="phase-row">
+    <div class="phase-label">
+      <span class="phase-num">Fase 3</span>
+      <span class="phase-tag tag-player">Player</span>
+    </div>
+    <div class="phase-content">
+      <div class="phase-title">Player multi-stem no frontend</div>
+      <div class="phase-desc">Interface React com Web Audio API. Todos os stems carregam em um único AudioContext para garantir sincronização perfeita. Controle de volume e mute por canal, waveform visual.</div>
+      <div class="tasks">
+        <div class="task" onclick="openLink('https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API')">
+          <div class="task-dot"></div>
+          <span class="task-text">Implementar <code>AudioContext</code> com um <code>GainNode</code> por stem — todos iniciados no mesmo instante via <code>AudioBufferSourceNode.start(ctx.currentTime)</code></span>
+          <a class="task-ref" href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API" target="_blank">web audio api</a>
+        </div>
+        <div class="task" onclick="openLink('https://wavesurfer.xyz/')">
+          <div class="task-dot"></div>
+          <span class="task-text">Integrar WaveSurfer.js para renderizar waveform visual e seekbar interativa de cada stem</span>
+          <a class="task-ref" href="https://wavesurfer.xyz/" target="_blank">wavesurfer.js</a>
+        </div>
+        <div class="task">
+          <div class="task-dot"></div>
+          <span class="task-text">Criar componente <code>StemChannel</code> com controle de volume (slider), mute toggle e indicador de nível (VU meter simples)</span>
+        </div>
+        <div class="task" onclick="openLink('https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events')">
+          <div class="task-dot"></div>
+          <span class="task-text">Mostrar barra de progresso do processamento via WebSocket — estados: <em>downloading → separating → ready</em></span>
+          <a class="task-ref" href="https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events" target="_blank">SSE / WS</a>
+        </div>
+      </div>
+      <div class="stack-row">
+        <span class="stack-pill">React</span>
+        <span class="stack-pill">Web Audio API</span>
+        <span class="stack-pill">WaveSurfer.js</span>
+        <span class="stack-pill">Vite</span>
+      </div>
+      <div class="risk-block risk-info">
+        <div class="risk-title">Atenção</div>
+        <div class="risk-text">Browsers bloqueiam <code>AudioContext</code> sem interação do usuário. Criar o contexto apenas após primeiro clique — nunca no <code>useEffect</code> de montagem.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-break">
+    <span class="section-break-label">Próximos passos (pós-MVP)</span>
+    <div class="section-break-line"></div>
+  </div>
+
+  <!-- FASE 4 -->
+  <div class="phase-row">
+    <div class="phase-label">
+      <span class="phase-num">v2</span>
+      <span class="phase-tag tag-next">Análise</span>
+    </div>
+    <div class="phase-content">
+      <div class="phase-title">Análise musical e transcrição</div>
+      <div class="phase-desc">Com o pipeline de separação funcionando, adicionar camadas de análise sobre os stems isolados. BPM no stem de drums é muito mais preciso que no mix completo.</div>
+      <div class="tasks">
+        <div class="task" onclick="openLink('https://librosa.org/doc/latest/beat.html')">
+          <div class="task-dot"></div>
+          <span class="task-text">BPM via <code>librosa.beat.beat_track()</code> no stem de drums — expor resultado no player com tap tempo visual</span>
+          <a class="task-ref" href="https://librosa.org/doc/latest/beat.html" target="_blank">librosa beat</a>
+        </div>
+        <div class="task" onclick="openLink('https://github.com/spotify/basic-pitch')">
+          <div class="task-dot"></div>
+          <span class="task-text">Detecção de notas via Basic Pitch (Spotify, open source) — gerar MIDI do stem de bass e vocals</span>
+          <a class="task-ref" href="https://github.com/spotify/basic-pitch" target="_blank">basic-pitch</a>
+        </div>
+        <div class="task" onclick="openLink('https://librosa.org/doc/latest/generated/librosa.onset.onset_detect.html')">
+          <div class="task-dot"></div>
+          <span class="task-text">Transcrição de bateria: onset detection + classificação por centroide espectral (kick / snare / hihat)</span>
+          <a class="task-ref" href="https://librosa.org/doc/latest/generated/librosa.onset.onset_detect.html" target="_blank">onset detect</a>
+        </div>
+        <div class="task" onclick="openLink('https://github.com/craffel/pretty-midi')">
+          <div class="task-dot"></div>
+          <span class="task-text">Exportar transcrição como MIDI com <code>pretty_midi</code> — visualizar no frontend como piano roll ou partitura simplificada</span>
+          <a class="task-ref" href="https://github.com/craffel/pretty-midi" target="_blank">pretty-midi</a>
+        </div>
+      </div>
+      <div class="stack-row">
+        <span class="stack-pill">librosa</span>
+        <span class="stack-pill">basic-pitch</span>
+        <span class="stack-pill">pretty-midi</span>
+        <span class="stack-pill">numpy</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arquitetura -->
+  <div class="section-break">
+    <span class="section-break-label">Arquitetura do MVP</span>
+    <div class="section-break-line"></div>
+  </div>
+
+  <div class="arch-grid">
+    <div class="arch-card">
+      <div class="arch-card-title">Backend — Python</div>
+      <div class="arch-item">FastAPI (API + WebSocket)</div>
+      <div class="arch-item">Demucs (separação GPU)</div>
+      <div class="arch-item">yt-dlp (download)</div>
+      <div class="arch-item">Spotipy (leitura playlist)</div>
+      <div class="arch-item">FFmpeg (conversão áudio)</div>
+    </div>
+    <div class="arch-card">
+      <div class="arch-card-title">Frontend — React</div>
+      <div class="arch-item">Vite + React 18</div>
+      <div class="arch-item">Web Audio API (player)</div>
+      <div class="arch-item">WaveSurfer.js (waveform)</div>
+      <div class="arch-item">WebSocket client (progresso)</div>
+      <div class="arch-item">Fetch API (endpoints REST)</div>
+    </div>
+    <div class="arch-card">
+      <div class="arch-card-title">Storage local</div>
+      <div class="arch-item"><code>storage/raw/</code> — áudio original</div>
+      <div class="arch-item"><code>storage/stems/</code> — WAV separados</div>
+      <div class="arch-item"><code>storage/cache/</code> — modelos Demucs</div>
+    </div>
+    <div class="arch-card">
+      <div class="arch-card-title">Infraestrutura</div>
+      <div class="arch-item">Docker + docker-compose</div>
+      <div class="arch-item">NVIDIA Container Toolkit</div>
+      <div class="arch-item">CUDA 11.8</div>
+      <div class="arch-item">Volume mount p/ GPU</div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="section-break">
+    <span class="section-break-label">Esforço estimado</span>
+    <div class="section-break-line"></div>
+  </div>
+
+  <div class="timeline-bar">
+    <div class="tbar-seg tb-1"></div>
+    <div class="tbar-seg tb-2"></div>
+    <div class="tbar-seg tb-3"></div>
+    <div class="tbar-seg tb-4"></div>
+  </div>
+  <div class="timeline-legend">
+    <div class="tleg-item"><div class="tleg-dot td-1"></div>Fase 1 — ~1 dia</div>
+    <div class="tleg-item"><div class="tleg-dot td-2"></div>Fase 2 — ~2–3 dias</div>
+    <div class="tleg-item"><div class="tleg-dot td-3"></div>Fase 3 — ~2 dias</div>
+    <div class="tleg-item"><div class="tleg-dot td-4"></div>v2 Análise — +1 semana</div>
+  </div>
+
+</div>
+
+<script>
+function openLink(url) {
+  const a = document.createElement('a');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+}
+</script>

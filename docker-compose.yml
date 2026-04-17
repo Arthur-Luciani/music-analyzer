@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: music-analyzer-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./storage:/app/storage
+    environment:
+      - PYTHONUNBUFFERED=1
+      - STORAGE_ROOT=/app/storage
+    gpus: all
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: music-analyzer-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_BACKEND_ORIGIN=http://backend:8000
+    command: npm run dev -- --host 0.0.0.0 --port 5173

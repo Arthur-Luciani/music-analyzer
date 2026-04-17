@@ -1,0 +1,25 @@
+# Music Analyzer - Dependencias do pipeline (MVP Fase 2 + v2)
+# Este arquivo complementa backend/requirements.txt.
+# Mantemos separado para habilitar o pipeline gradualmente.
+
+# CUDA 11.8 (MVP)
+# Necessario para Demucs com GPU.
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch>=2.3,<2.7
+torchaudio>=2.3,<2.7
+
+# Fase 2 - Core pipeline
+demucs>=4.0.1,<5
+yt-dlp>=2024.8.6
+spotipy>=2.24.0
+rapidfuzz>=3.9.0
+python-dotenv>=1.0.1
+
+# Utilitarios de audio e dados
+numpy>=1.26,<3
+soundfile>=0.12.1
+
+# v2 - Analise (pos-MVP)
+librosa>=0.10.2.post1
+basic-pitch>=0.4.0
+pretty-midi>=0.2.10

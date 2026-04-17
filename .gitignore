@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+
+# Node
+node_modules/
+
+# Build artifacts
+dist/
+build/
+
+# Local storage outputs
+storage/raw/*
+storage/stems/*
+storage/cache/*
+!storage/raw/.gitkeep
+!storage/stems/.gitkeep
+!storage/cache/.gitkeep
+
+# Environment
+.env

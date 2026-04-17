@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Analyzer - MVP Static Validation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-0: #f1f8ff;
+      --bg-1: #deefff;
+      --bg-2: #f8f4e8;
+      --ink-1: #13253a;
+      --ink-2: #324c68;
+      --ink-3: #5a7391;
+      --line: #b6cbe2;
+      --card: rgba(255, 255, 255, 0.86);
+      --ok: #16985f;
+      --warn: #b86b09;
+      --err: #c73344;
+      --accent: #0e6bb2;
+      --accent-2: #1f95da;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Space Grotesk", "Segoe UI", sans-serif;
+      color: var(--ink-1);
+      background:
+        radial-gradient(1200px 700px at 100% -10%, rgba(14, 107, 178, 0.18), transparent 55%),
+        radial-gradient(900px 600px at 0% 100%, rgba(184, 107, 9, 0.16), transparent 60%),
+        linear-gradient(140deg, var(--bg-0) 0%, var(--bg-1) 45%, var(--bg-2) 100%);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .page {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 14px 34px rgba(34, 71, 105, 0.12);
+      backdrop-filter: blur(8px);
+    }
+
+    .hero {
+      display: grid;
+      gap: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      width: fit-content;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid #98b7d5;
+      color: #0a5f9f;
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(26px, 4vw, 40px);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--ink-2);
+      max-width: 72ch;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: 1.2fr 1fr;
+    }
+
+    .form {
+      display: grid;
+      gap: 10px;
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink-3);
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      min-width: 240px;
+      border: 1px solid #97bde1;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
+      color: var(--ink-1);
+      background: #fdfefe;
+      outline: none;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 3px rgba(31, 149, 218, 0.18);
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 140ms ease, filter 140ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.02);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      color: #fff;
+    }
+
+    .btn-subtle {
+      background: #f3f8ff;
+      color: #114a7a;
+      border-color: #a8c7e5;
+    }
+
+    .btn-danger {
+      background: #fff4f4;
+      color: #b62137;
+      border-color: #e9afbb;
+    }
+
+    .results-box {
+      margin-top: 12px;
+      border: 1px solid #bfd3e8;
+      border-radius: 12px;
+      background: rgba(245, 251, 255, 0.8);
+      padding: 10px;
+    }
+
+    .results-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: var(--ink-2);
+    }
+
+    .results-list {
+      display: grid;
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+    }
+
+    .result-item {
+      display: grid;
+      grid-template-columns: 18px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid #c4d7ea;
+      border-radius: 10px;
+      padding: 8px;
+      background: #ffffff;
+      cursor: pointer;
+    }
+
+    .result-item:hover {
+      border-color: #81b2de;
+    }
+
+    .result-item.selected {
+      border-color: #2f8ccf;
+      box-shadow: 0 0 0 2px rgba(47, 140, 207, 0.12);
+      background: #f1f8ff;
+    }
+
+    .result-main {
+      display: grid;
+      gap: 3px;
+    }
+
+    .result-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink-1);
+    }
+
+    .result-meta {
+      font-size: 12px;
+      color: var(--ink-3);
+    }
+
+    .score-badge {
+      min-width: 64px;
+      text-align: center;
+      border: 1px solid #8fb8dc;
+      background: #e8f4ff;
+      color: #0c5d99;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .result-side {
+      display: grid;
+      gap: 6px;
+      justify-items: end;
+    }
+
+    .result-link {
+      font-size: 11px;
+      font-weight: 700;
+      color: #0b5f9e;
+      border: 1px solid #99bedf;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: #eef7ff;
+      text-decoration: none;
+    }
+
+    .result-link:hover {
+      border-color: #5d99cc;
+      color: #0a4f83;
+      background: #e4f1ff;
+    }
+
+    .selection-note {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #124b7b;
+      min-height: 18px;
+    }
+
+    .status-bar {
+      margin-top: 10px;
+      background: #dceaf8;
+      border-radius: 999px;
+      height: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .status-bar > span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, #0f6cb4, #28a4dd 70%, #66ceff);
+      transition: width 0.45s ease;
+    }
+
+    .state-header {
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      font-size: 14px;
+    }
+
+    .state-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 9px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border: 1px solid;
+      opacity: 0.35;
+      transition: opacity 150ms ease, transform 150ms ease;
+    }
+
+    .pill.active {
+      opacity: 1;
+      transform: translateY(-1px);
+    }
+
+    .queued { border-color: #8a9eb6; color: #3d5068; background: #edf2f7; }
+    .downloading { border-color: #6f97be; color: #155992; background: #e6f3ff; }
+    .separating { border-color: #d19a4d; color: #8c4f08; background: #fff4e5; }
+    .ready { border-color: #7ebf9c; color: #0a6b3f; background: #e8f9f0; }
+    .failed { border-color: #d696a1; color: #a61f32; background: #ffedf0; }
+
+    .subtext {
+      font-size: 13px;
+      color: var(--ink-2);
+      margin-top: 6px;
+      min-height: 19px;
+    }
+
+    .mono {
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      color: var(--ink-3);
+      font-size: 12px;
+    }
+
+    .channels {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .channel {
+      display: grid;
+      grid-template-columns: 80px 1fr 66px 64px;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid #c5d7ea;
+      border-radius: 12px;
+      padding: 9px 10px;
+      background: rgba(255, 255, 255, 0.75);
+    }
+
+    .channel strong {
+      font-size: 14px;
+      text-transform: capitalize;
+    }
+
+    .vu {
+      height: 8px;
+      border-radius: 999px;
+      background: #e2edf8;
+      overflow: hidden;
+    }
+
+    .vu > span {
+      display: block;
+      width: 0%;
+      height: 100%;
+      transition: width 90ms linear;
+      background: linear-gradient(90deg, #1e8f5e, #a9cb3f, #de8b20);
+    }
+
+    .channel input[type="range"] {
+      width: 100%;
+      accent-color: #1d7abd;
+    }
+
+    .muted {
+      opacity: 0.55;
+    }
+
+    .log {
+      margin-top: 10px;
+      background: #0f2134;
+      color: #cee0f3;
+      border-radius: 12px;
+      border: 1px solid #335172;
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 12px;
+      padding: 10px;
+      height: 170px;
+      overflow: auto;
+      line-height: 1.4;
+    }
+
+    pre {
+      margin: 0;
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 12px;
+      color: #113659;
+      background: #f5f9ff;
+      border: 1px solid #bfd3e8;
+      border-radius: 12px;
+      padding: 10px;
+      overflow: auto;
+      max-height: 260px;
+    }
+
+    .checks {
+      display: grid;
+      gap: 7px;
+      margin-top: 6px;
+      color: var(--ink-2);
+      font-size: 14px;
+    }
+
+    .checks div {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px dashed #c9d9ea;
+      padding-bottom: 5px;
+    }
+
+    .ok { color: var(--ok); font-weight: 700; }
+    .warn { color: var(--warn); font-weight: 700; }
+    .err { color: var(--err); font-weight: 700; }
+
+    @media (max-width: 920px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 14px;
+      }
+
+      .panel {
+        padding: 12px;
+      }
+
+      .channel {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="panel hero">
+      <span class="chip">Static Prototype</span>
+      <h1>Music Analyzer MVP Validation</h1>
+      <p>
+        Prototipo HTML estatico para validar o fluxo do MVP sem backend real.
+        Simula POST /api/process, progresso no estilo WebSocket e estado final com stems.
+      </p>
+      <p class="mono">Objetivo: validar UX e contrato visual antes de plugar download + Demucs real.</p>
+    </section>
+
+    <section class="grid">
+      <article class="panel">
+        <form class="form" id="jobForm">
+          <label for="query">Busca da faixa</label>
+          <div class="row">
+            <input id="query" type="text" value="Daft Punk - Get Lucky" minlength="3" />
+            <button class="btn-subtle" type="button" id="searchBtn">Buscar candidatos</button>
+            <button class="btn-primary" type="submit" id="startBtn">Processar selecionada</button>
+          </div>
+
+          <div class="row">
+            <button class="btn-subtle" type="button" id="successBtn">Simular sucesso</button>
+            <button class="btn-danger" type="button" id="failBtn">Simular falha</button>
+            <button class="btn-subtle" type="button" id="resetBtn">Reset</button>
+          </div>
+        </form>
+
+        <div class="results-box" id="resultsBox" hidden>
+          <div class="results-head">
+            <strong>Candidatos encontrados</strong>
+            <span class="mono" id="resultsHint"></span>
+          </div>
+          <div class="results-list" id="resultsList"></div>
+          <p class="selection-note" id="selectionNote"></p>
+        </div>
+
+        <div class="state-header">
+          <span id="jobLine" class="mono">Job: -</span>
+          <strong id="progressLabel">0%</strong>
+        </div>
+
+        <div class="status-bar" aria-label="Job progress">
+          <span id="progressFill"></span>
+        </div>
+
+        <div class="state-pills">
+          <span class="pill queued" data-state="queued">queued</span>
+          <span class="pill downloading" data-state="downloading">downloading</span>
+          <span class="pill separating" data-state="separating">separating</span>
+          <span class="pill ready" data-state="ready">ready</span>
+          <span class="pill failed" data-state="failed">failed</span>
+        </div>
+
+        <p id="stateText" class="subtext">Aguardando inicio...</p>
+        <p id="errorText" class="subtext err" hidden></p>
+
+        <div id="channels" class="channels" hidden></div>
+
+        <div class="log" id="logBox" aria-live="polite"></div>
+      </article>
+
+      <article class="panel">
+        <h2 style="margin:0 0 8px;font-size:20px;">Payload preview</h2>
+        <pre id="jsonPreview">{
+  "job_id": null,
+  "query": null,
+  "state": "queued",
+  "progress": 0,
+  "message": "Job queued",
+  "stems": null,
+  "error": null
+}</pre>
+
+        <h2 style="margin:14px 0 8px;font-size:20px;">Endpoint checklist</h2>
+        <div class="checks">
+          <div><span>GET /health</span><span class="ok">ok (mock)</span></div>
+          <div><span>POST /api/process</span><span class="ok">simulado</span></div>
+          <div><span>WS /ws/{job_id}</span><span class="ok">simulado</span></div>
+          <div><span>GET /api/jobs/{job_id}</span><span class="ok">payload visivel</span></div>
+          <div><span>Stems prontos</span><span class="warn">somente mock path</span></div>
+          <div><span>Audio real</span><span class="err">nao implementado</span></div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("jobForm");
+    const startBtn = document.getElementById("startBtn");
+    const searchBtn = document.getElementById("searchBtn");
+    const successBtn = document.getElementById("successBtn");
+    const failBtn = document.getElementById("failBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const queryInput = document.getElementById("query");
+    const resultsBox = document.getElementById("resultsBox");
+    const resultsHint = document.getElementById("resultsHint");
+    const resultsList = document.getElementById("resultsList");
+    const selectionNote = document.getElementById("selectionNote");
+
+    const progressFill = document.getElementById("progressFill");
+    const progressLabel = document.getElementById("progressLabel");
+    const stateText = document.getElementById("stateText");
+    const errorText = document.getElementById("errorText");
+    const jsonPreview = document.getElementById("jsonPreview");
+    const logBox = document.getElementById("logBox");
+    const jobLine = document.getElementById("jobLine");
+    const channelsEl = document.getElementById("channels");
+
+    const pills = Array.from(document.querySelectorAll(".pill"));
+
+    let job = buildInitialJob();
+    let timelineHandle = null;
+    let vuHandle = null;
+    let candidates = [];
+    let selectedCandidateId = null;
+
+    render();
+    pushLog("[system] Prototype loaded");
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      runTimeline(buildSuccessTimeline());
+    });
+
+    searchBtn.addEventListener("click", runCandidateSearch);
+    successBtn.addEventListener("click", () => runTimeline(buildSuccessTimeline()));
+    failBtn.addEventListener("click", () => runTimeline(buildFailureTimeline()));
+    resetBtn.addEventListener("click", reset);
+
+    function runCandidateSearch() {
+      if (queryInput.value.trim().length < 3) {
+        stateText.textContent = "Informe ao menos 3 caracteres na busca";
+        return;
+      }
+
+      candidates = buildMockCandidates(queryInput.value.trim());
+      selectedCandidateId = candidates[0]?.id ?? null;
+      renderCandidates();
+
+      pushLog(`[api] GET /api/search?q=${encodeURIComponent(queryInput.value.trim())} -> ${candidates.length} resultados`);
+      if (selectedCandidateId) {
+        pushLog(`[ranker] Melhor match inicial: ${getSelectedCandidate().title}`);
+      }
+    }
+
+    function buildSuccessTimeline() {
+      return [
+        { state: "queued", progress: 0, message: "Job queued" },
+        { state: "downloading", progress: 15, message: "Downloading selected source" },
+        { state: "downloading", progress: 45, message: "Audio normalized and converted to WAV" },
+        { state: "separating", progress: 70, message: "Running stem separation on GPU" },
+        { state: "ready", progress: 100, message: "Stems ready" }
+      ];
+    }
+
+    function buildFailureTimeline() {
+      return [
+        { state: "queued", progress: 0, message: "Job queued" },
+        { state: "downloading", progress: 20, message: "Downloading selected source" },
+        { state: "separating", progress: 68, message: "Running stem separation on GPU" },
+        { state: "failed", progress: 100, message: "Processing failed", error: "CUDA out of memory" }
+      ];
+    }
+
+    function runTimeline(steps) {
+      if (queryInput.value.trim().length < 3) {
+        stateText.textContent = "Informe ao menos 3 caracteres na busca";
+        return;
+      }
+
+      if (!getSelectedCandidate()) {
+        stateText.textContent = "Selecione uma faixa candidata antes de processar";
+        return;
+      }
+
+      stopLoops();
+      const selected = getSelectedCandidate();
+      job = buildInitialJob(queryInput.value.trim(), selected);
+      render();
+      pushLog(`[api] POST /api/process -> 200 (source_id=${selected.id})`);
+
+      let index = 0;
+      timelineHandle = setInterval(() => {
+        const step = steps[index];
+        index += 1;
+
+        if (!step) {
+          clearInterval(timelineHandle);
+          timelineHandle = null;
+          return;
+        }
+
+        job = {
+          ...job,
+          state: step.state,
+          progress: step.progress,
+          message: step.message,
+          stems: step.stems || (step.state === "ready" ? makeStemPaths() : null),
+          error: step.error || null,
+          updated_at: new Date().toISOString()
+        };
+
+        pushLog(`[ws] state=${job.state} progress=${job.progress}% message=\"${job.message}\"`);
+        render();
+
+        if (job.state === "ready") {
+          startVuAnimation();
+          clearInterval(timelineHandle);
+          timelineHandle = null;
+        }
+
+        if (job.state === "failed") {
+          clearInterval(timelineHandle);
+          timelineHandle = null;
+        }
+      }, 1050);
+    }
+
+    function renderCandidates() {
+      if (candidates.length === 0) {
+        resultsBox.hidden = true;
+        return;
+      }
+
+      resultsBox.hidden = false;
+      resultsHint.textContent = `${candidates.length} resultados`;
+
+      const selected = getSelectedCandidate();
+      resultsList.innerHTML = candidates.map((item) => {
+        const selectedClass = selectedCandidateId === item.id ? "selected" : "";
+        return `
+          <label class="result-item ${selectedClass}" data-id="${item.id}">
+            <input type="radio" name="candidate" value="${item.id}" ${selectedCandidateId === item.id ? "checked" : ""} />
+            <div class="result-main">
+              <span class="result-title">${item.title}</span>
+              <span class="result-meta">${item.artist} | ${item.duration} | ${item.source}</span>
+            </div>
+            <div class="result-side">
+              <span class="score-badge">match ${item.score}%</span>
+              <a class="result-link" href="${item.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">abrir link</a>
+            </div>
+          </label>
+        `;
+      }).join("");
+
+      selectionNote.textContent = selected
+        ? `Selecionada: ${selected.title} (${selected.score}% de confianca)`
+        : "Selecione uma faixa antes de processar";
+
+      Array.from(resultsList.querySelectorAll('input[name="candidate"]')).forEach((radio) => {
+        radio.addEventListener("change", (event) => {
+          selectedCandidateId = event.target.value;
+          renderCandidates();
+          const picked = getSelectedCandidate();
+          if (picked) {
+            pushLog(`[user] Selecionou candidato: ${picked.title} (${picked.score}%)`);
+          }
+        });
+      });
+    }
+
+    function render() {
+      jobLine.textContent = `Job: ${job.job_id ?? "-"}`;
+      progressLabel.textContent = `${job.progress}%`;
+      progressFill.style.width = `${job.progress}%`;
+      stateText.textContent = `${job.state} | ${job.message}`;
+
+      pills.forEach((pill) => {
+        if (pill.dataset.state === job.state) {
+          pill.classList.add("active");
+        } else {
+          pill.classList.remove("active");
+        }
+      });
+
+      if (job.error) {
+        errorText.hidden = false;
+        errorText.textContent = `Erro: ${job.error}`;
+      } else {
+        errorText.hidden = true;
+      }
+
+      if (job.state === "ready" && job.stems) {
+        renderChannels(job.stems);
+      } else {
+        channelsEl.hidden = true;
+        channelsEl.innerHTML = "";
+      }
+
+      jsonPreview.textContent = JSON.stringify(job, null, 2);
+    }
+
+    function buildMockCandidates(query) {
+      const token = query.split("-")[0]?.trim() || query;
+      return [
+        { id: "yt_01", title: `${token} - Official Audio`, artist: token, duration: "6:09", source: "YouTube", score: 96, url: "https://www.youtube.com/watch?v=8UVNT4wvIGY" },
+        { id: "yt_02", title: `${token} - Live Session 2018`, artist: token, duration: "6:32", source: "YouTube", score: 86, url: "https://www.youtube.com/watch?v=5NV6Rdv1a3I" },
+        { id: "yt_03", title: `${token} (Remastered)`, artist: token, duration: "6:05", source: "YouTube", score: 82, url: "https://www.youtube.com/watch?v=JGwWNGJdvx8" },
+        { id: "yt_04", title: `${token} - Radio Edit`, artist: token, duration: "4:12", source: "YouTube", score: 74, url: "https://www.youtube.com/watch?v=fRh_vgS2dFE" },
+        { id: "yt_05", title: `${token} Cover by Studio Band`, artist: "Studio Band", duration: "5:58", source: "YouTube", score: 61, url: "https://www.youtube.com/watch?v=09R8_2nJtjg" }
+      ];
+    }
+
+    function getSelectedCandidate() {
+      return candidates.find((item) => item.id === selectedCandidateId) || null;
+    }
+
+    function renderChannels(stems) {
+      const names = Object.keys(stems);
+      channelsEl.hidden = false;
+      channelsEl.innerHTML = names.map((name) => {
+        return `
+          <div class="channel" data-channel="${name}">
+            <strong>${name}</strong>
+            <div>
+              <input type="range" min="0" max="100" value="84" aria-label="${name} volume" />
+              <div class="vu" aria-hidden="true"><span></span></div>
+            </div>
+            <span class="mono">vol 84%</span>
+            <button type="button" class="btn-subtle mute-btn">Mute</button>
+          </div>
+        `;
+      }).join("");
+
+      const channels = Array.from(channelsEl.querySelectorAll(".channel"));
+      channels.forEach((channel) => {
+        const slider = channel.querySelector('input[type="range"]');
+        const volText = channel.querySelector(".mono");
+        const muteBtn = channel.querySelector(".mute-btn");
+        let muted = false;
+
+        slider.addEventListener("input", () => {
+          volText.textContent = `vol ${slider.value}%`;
+        });
+
+        muteBtn.addEventListener("click", () => {
+          muted = !muted;
+          channel.classList.toggle("muted", muted);
+          muteBtn.textContent = muted ? "Unmute" : "Mute";
+        });
+      });
+    }
+
+    function startVuAnimation() {
+      stopVuAnimation();
+      vuHandle = setInterval(() => {
+        const bars = channelsEl.querySelectorAll(".vu > span");
+        bars.forEach((bar) => {
+          bar.style.width = `${Math.round(16 + Math.random() * 84)}%`;
+        });
+      }, 120);
+    }
+
+    function stopVuAnimation() {
+      if (vuHandle) {
+        clearInterval(vuHandle);
+        vuHandle = null;
+      }
+    }
+
+    function stopLoops() {
+      if (timelineHandle) {
+        clearInterval(timelineHandle);
+        timelineHandle = null;
+      }
+      stopVuAnimation();
+    }
+
+    function reset() {
+      stopLoops();
+      job = buildInitialJob();
+      candidates = [];
+      selectedCandidateId = null;
+      resultsBox.hidden = true;
+      resultsList.innerHTML = "";
+      selectionNote.textContent = "";
+      render();
+      logBox.textContent = "";
+      pushLog("[system] State reset");
+    }
+
+    function buildInitialJob(queryValue = null, selectedTrack = null) {
+      return {
+        job_id: queryValue ? crypto.randomUUID() : null,
+        query: queryValue,
+        state: "queued",
+        progress: 0,
+        message: "Job queued",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        selected_track: selectedTrack,
+        stems: null,
+        error: null
+      };
+    }
+
+    function makeStemPaths() {
+      const id = job.job_id || "00000000-0000-0000-0000-000000000000";
+      return {
+        vocals: `storage/stems/${id}/vocals.wav`,
+        drums: `storage/stems/${id}/drums.wav`,
+        bass: `storage/stems/${id}/bass.wav`,
+        other: `storage/stems/${id}/other.wav`
+      };
+    }
+
+    function pushLog(line) {
+      const stamp = new Date().toLocaleTimeString();
+      const entry = `[${stamp}] ${line}`;
+      if (!logBox.textContent.trim()) {
+        logBox.textContent = entry;
+      } else {
+        logBox.textContent += `\n${entry}`;
+      }
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+  </script>
+</body>
+</html>
