@@ -1,147 +1,80 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  connectJobSocket,
-  createExportJob,
-  createProcessJob,
-  duplicateSession,
-  getExportFileUrl,
-  getMixState,
-  getSessionEvents,
-  getSession,
-  getStemAudioUrl,
-  listExportJobs,
-  listSessions,
-  reprocessSession,
-  searchCandidates,
-  updateMixState,
-} from "./api";
-import { FINAL_STATES, PAGES, STEM_ORDER } from "./constants";
-import { useSession } from "./context/SessionContext";
-import DiscoverPage from "./pages/DiscoverPage";
-import LibraryPage from "./pages/LibraryPage";
-import SessionPage from "./pages/SessionPage";
-import WorkspacePage from "./pages/WorkspacePage";
-import {
-  formatBytes,
-  formatDuration,
-  getFriendlySessionCode,
-  getStateBadgeClass,
-  getStateBadgeLabel,
-  toFileName,
-} from "./utils/formatters";
+import { connectJobSocket, createProcessJob, getStemAudioUrl, searchCandidates } from "./api";
 
-const LIBRARY_PAGE_SIZE = 8;
-const PROCESSING_STATES = new Set(["queued", "downloading", "separating"]);
-const EXPORT_ACTIVE_STATES = new Set(["queued", "processing"]);
-const VALID_PAGE_SET = new Set(Object.values(PAGES));
-const MIX_DB_MIN = -60;
-const MIX_DB_MAX = 24;
-
-const DEFAULT_MIX_LEVELS = {
-  vocals: 84,
-  drums: 72,
-  bass: 65,
-  other: 58,
-  master: 78,
+const FINAL_STATES = new Set(["ready", "failed"]);
+const PAGES = {
+  discover: "discover",
+  session: "session",
+  workspace: "workspace",
+  library: "library",
 };
 
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
+const STEM_ORDER = ["vocals", "drums", "bass", "other"];
 
-function gainDbToPercent(gainValue) {
-  const gain = Number.isFinite(gainValue) ? gainValue : 0;
-  const normalized = ((clamp(gain, MIX_DB_MIN, MIX_DB_MAX) - MIX_DB_MIN) / (MIX_DB_MAX - MIX_DB_MIN)) * 100;
-  return Math.round(normalized);
-}
-
-function percentToGainDb(percentValue) {
-  const percent = Number.isFinite(percentValue) ? clamp(percentValue, 0, 100) : 0;
-  const gain = MIX_DB_MIN + ((MIX_DB_MAX - MIX_DB_MIN) * percent) / 100;
-  return Number(gain.toFixed(2));
-}
-
-function mixStateResponseToLevels(mixStatePayload) {
-  const perStem = mixStatePayload?.per_stem || {};
-  const nextLevels = { ...DEFAULT_MIX_LEVELS };
-
-  STEM_ORDER.forEach((stemName) => {
-    nextLevels[stemName] = gainDbToPercent(perStem?.[stemName]?.gain);
-  });
-
-  nextLevels.master = gainDbToPercent(mixStatePayload?.master_gain);
-  return nextLevels;
-}
-
-function buildMixStateUpdatePayload(levels) {
-  const perStem = {};
-
-  STEM_ORDER.forEach((stemName) => {
-    perStem[stemName] = {
-      gain: percentToGainDb(levels?.[stemName] ?? DEFAULT_MIX_LEVELS[stemName]),
-      pan: 0,
-      mute: false,
-      solo: false,
-      send_fx: 0,
-    };
-  });
-
-  return {
-    per_stem: perStem,
-    master_gain: percentToGainDb(levels?.master ?? DEFAULT_MIX_LEVELS.master),
-  };
-}
-
-function serializeMixPayload(payload) {
-  const normalizedPerStem = {};
-  STEM_ORDER.forEach((stemName) => {
-    const stemPayload = payload?.per_stem?.[stemName] || {};
-    normalizedPerStem[stemName] = {
-      gain: Number(stemPayload.gain ?? 0),
-      pan: Number(stemPayload.pan ?? 0),
-      mute: Boolean(stemPayload.mute),
-      solo: Boolean(stemPayload.solo),
-      send_fx: Number(stemPayload.send_fx ?? 0),
-    };
-  });
-
-  return JSON.stringify({
-    per_stem: normalizedPerStem,
-    master_gain: Number(payload?.master_gain ?? 0),
-  });
-}
-
-function toCreatedFromIso(dateValue) {
-  if (!dateValue) {
-    return undefined;
+function getFriendlySessionCode(jobId) {
+  if (!jobId) {
+    return "MX-000";
   }
-  return `${dateValue}T00:00:00`;
+
+  const seed = Array.from(jobId).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const serial = (seed % 999) + 1;
+  return `MX-${String(serial).padStart(3, "0")}`;
 }
 
-function toCreatedToIso(dateValue) {
-  if (!dateValue) {
-    return undefined;
+function getStateBadgeLabel(state) {
+  if (state === "ready") {
+    return "Pronta";
   }
-  return `${dateValue}T23:59:59`;
+  if (state === "failed") {
+    return "Falhou";
+  }
+  if (state === "separating") {
+    return "Separando";
+  }
+  if (state === "downloading") {
+    return "Baixando";
+  }
+  return "Na fila";
 }
 
-function normalizeSessionDetail(session) {
-  return {
-    job_id: session.session_id,
-    session_id: session.session_id,
-    session_code: session.session_code,
-    query: session.query,
-    selected_track: session.selected_track || null,
-    target_stems: session.target_stems || undefined,
-    state: session.status,
-    progress: session.progress ?? 0,
-    message: session.message || "Sessao carregada",
-    stems: session.stems || null,
-    error: session.error || undefined,
-    estimated_remaining_seconds: session.estimated_remaining_seconds ?? undefined,
-    separation_device: session.separation_device ?? undefined,
-    master_metrics: session.master_metrics ?? undefined,
-  };
+function getStateBadgeClass(state) {
+  if (state === "ready") {
+    return "ready";
+  }
+  if (state === "failed") {
+    return "failed";
+  }
+  if (state === "separating") {
+    return "processing";
+  }
+  if (state === "downloading") {
+    return "download";
+  }
+  return "processing";
+}
+
+function toFileName(pathLike) {
+  if (!pathLike || typeof pathLike !== "string") {
+    return "arquivo.wav";
+  }
+  const normalized = pathLike.replace(/\\/g, "/");
+  const chunks = normalized.split("/");
+  return chunks[chunks.length - 1] || "arquivo.wav";
+}
+
+function formatDuration(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const secs = String(seconds % 60).padStart(2, "0");
+  return `${mins}:${secs}`;
+}
+
+function formatBytes(sizeInBytes) {
+  if (!sizeInBytes || sizeInBytes <= 0) {
+    return "--";
+  }
+
+  const megaBytes = sizeInBytes / (1024 * 1024);
+  return `${megaBytes.toFixed(1)} MB`;
 }
 
 export default function App() {
@@ -154,67 +87,25 @@ export default function App() {
   const [searching, setSearching] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
-  const [sessionEvents, setSessionEvents] = useState([]);
-  const [sessionEventsLoading, setSessionEventsLoading] = useState(false);
-  const [sessionEventsError, setSessionEventsError] = useState("");
   const [stemSizes, setStemSizes] = useState({});
-  const [mixLevels, setMixLevels] = useState(DEFAULT_MIX_LEVELS);
-  const [mixStateLoading, setMixStateLoading] = useState(false);
-  const [mixStateSaving, setMixStateSaving] = useState(false);
-  const [mixStateError, setMixStateError] = useState("");
-  const [exportJobs, setExportJobs] = useState([]);
-  const [exportJobsLoading, setExportJobsLoading] = useState(false);
-  const [exportJobsError, setExportJobsError] = useState("");
-  const [exportActionLoading, setExportActionLoading] = useState("");
-  const [exportActionMessage, setExportActionMessage] = useState("");
-  const [libraryFilters, setLibraryFilters] = useState({
-    query: "",
-    status: "",
-    created_from: "",
-    created_to: "",
+  const [mixLevels, setMixLevels] = useState({
+    vocals: 84,
+    drums: 72,
+    bass: 65,
+    other: 58,
+    master: 78,
   });
-  const [libraryAppliedFilters, setLibraryAppliedFilters] = useState({
-    query: "",
-    status: "",
-    created_from: "",
-    created_to: "",
-  });
-  const [libraryPage, setLibraryPage] = useState(1);
-  const [libraryPayload, setLibraryPayload] = useState({
-    items: [],
-    total: 0,
-    page: 1,
-    page_size: LIBRARY_PAGE_SIZE,
-  });
-  const [libraryLoading, setLibraryLoading] = useState(false);
-  const [libraryError, setLibraryError] = useState("");
-  const [libraryActionLoading, setLibraryActionLoading] = useState("");
-  const [libraryActionMessage, setLibraryActionMessage] = useState("");
-  const [routeReady, setRouteReady] = useState(false);
-
-  const { currentSession, setSessionFromPayload, clearSession } = useSession();
 
   const loading = searching || processing;
   const stemAudioRefs = useRef({});
   const previewTimersRef = useRef({});
-  const jobSocketRef = useRef(null);
-  const initialRouteAppliedRef = useRef(false);
-  const loadedMixSessionRef = useRef("");
-  const mixSaveTimerRef = useRef(null);
-  const lastPersistedMixPayloadRef = useRef(serializeMixPayload(buildMixStateUpdatePayload(DEFAULT_MIX_LEVELS)));
-
-  const libraryTotalPages = useMemo(() => {
-    const total = libraryPayload.total || 0;
-    const pageSize = libraryPayload.page_size || LIBRARY_PAGE_SIZE;
-    return Math.max(1, Math.ceil(total / pageSize));
-  }, [libraryPayload.page_size, libraryPayload.total]);
 
   const sessionCode = useMemo(() => {
-    if (currentSession.session_code) {
-      return currentSession.session_code;
+    if (job?.session_code) {
+      return job.session_code;
     }
-    return getFriendlySessionCode(currentSession.job_id);
-  }, [currentSession.job_id, currentSession.session_code]);
+    return getFriendlySessionCode(job?.job_id);
+  }, [job?.session_code, job?.job_id]);
 
   const stemsList = useMemo(() => {
     if (!job?.stems) {
@@ -231,18 +122,25 @@ export default function App() {
   );
 
   const sessionStemPreview = useMemo(() => {
+    const fallbackEnergy = {
+      vocals: 92,
+      drums: 74,
+      bass: 66,
+      other: 58,
+    };
+
     const sizeValues = Object.values(stemSizes).filter((value) => Number.isFinite(value) && value > 0);
     const maxSize = sizeValues.length ? Math.max(...sizeValues) : 0;
 
     return stemsList.map(([stemName, stemPath]) => {
       const sizeInBytes = stemSizes[stemName] || 0;
-      const normalizedEnergy = maxSize > 0 && sizeInBytes > 0 ? Math.round((sizeInBytes / maxSize) * 100) : null;
+      const normalizedEnergy = maxSize > 0 ? Math.round((sizeInBytes / maxSize) * 100) : fallbackEnergy[stemName] || 50;
 
       return {
         stemName,
         fileName: toFileName(stemPath),
         fileSizeLabel: formatBytes(sizeInBytes),
-        energy: Number.isFinite(normalizedEnergy) ? Math.max(12, normalizedEnergy) : null,
+        energy: Math.max(12, normalizedEnergy),
         audioUrl: job?.job_id ? getStemAudioUrl(job.job_id, stemName) : "",
       };
     });
@@ -265,347 +163,12 @@ export default function App() {
     };
   }, [job]);
 
-  function closeActiveJobSocket() {
-    if (!jobSocketRef.current) {
-      return;
-    }
-    jobSocketRef.current.close();
-    jobSocketRef.current = null;
-  }
-
-  async function fetchSessionEventsForSession(sessionId, options = {}) {
-    const { silent = false } = options;
-    if (!sessionId) {
-      return;
-    }
-
-    if (!silent) {
-      setSessionEventsLoading(true);
-    }
-    setSessionEventsError("");
-
-    try {
-      const events = await getSessionEvents(sessionId);
-      setSessionEvents(Array.isArray(events) ? events : []);
-    } catch (err) {
-      setSessionEventsError(err.message || "Falha ao carregar eventos da sessao");
-    } finally {
-      if (!silent) {
-        setSessionEventsLoading(false);
-      }
-    }
-  }
-
-  async function fetchExportJobsForSession(sessionId, options = {}) {
-    const { silent = false } = options;
-    if (!sessionId) {
-      return;
-    }
-
-    if (!silent) {
-      setExportJobsLoading(true);
-    }
-    setExportJobsError("");
-
-    try {
-      const jobs = await listExportJobs(sessionId);
-      setExportJobs(Array.isArray(jobs) ? jobs : []);
-    } catch (err) {
-      setExportJobsError(err.message || "Falha ao carregar exportacoes da sessao");
-    } finally {
-      if (!silent) {
-        setExportJobsLoading(false);
-      }
-    }
-  }
-
-  async function createExportForSession(preset, formatName, options = {}) {
-    const sessionId = job?.session_id || currentSession.session_id;
-    if (!sessionId) {
-      setExportJobsError("Sessao indisponivel para criar exportacao");
-      return;
-    }
-
-    if (job?.state !== "ready") {
-      setExportJobsError("A exportacao exige sessao no estado pronta");
-      return;
-    }
-
-    const actionKey = `${preset}:${formatName}`;
-    setExportActionLoading(actionKey);
-    setExportJobsError("");
-
-    try {
-      await createExportJob(sessionId, {
-        preset,
-        format: formatName,
-        options,
-      });
-
-      setExportActionMessage(`Exportacao ${preset} iniciada.`);
-      await fetchExportJobsForSession(sessionId, { silent: true });
-    } catch (err) {
-      setExportJobsError(err.message || "Falha ao iniciar exportacao");
-    } finally {
-      setExportActionLoading("");
-    }
-  }
-
-  async function handleRetryExport(exportJob) {
-    if (!exportJob) {
-      return;
-    }
-
-    await createExportForSession(exportJob.preset || "study_mix", exportJob.format || "wav", {});
-  }
-
-  async function handleRefreshExports() {
-    const sessionId = job?.session_id || currentSession.session_id;
-    if (!sessionId) {
-      return;
-    }
-
-    await fetchExportJobsForSession(sessionId);
-  }
-
-  function applyHydratedSession(normalizedSession, targetPage) {
-    setJob(normalizedSession);
-    setSessionFromPayload(normalizedSession);
-    setCurrentPage(targetPage);
-    setError("");
-
-    if (FINAL_STATES.has(normalizedSession.state)) {
-      closeActiveJobSocket();
-      setProcessing(false);
-      return;
-    }
-
-    setProcessing(true);
-    startJobSocket(normalizedSession.job_id);
-  }
-
-  async function hydrateSessionAndNavigate(sessionId, targetPage, options = {}) {
-    const { loadingKey = "", clearLibraryError = false, onError } = options;
-
-    if (!sessionId) {
-      return;
-    }
-
-    if (loadingKey) {
-      setLibraryActionLoading(loadingKey);
-    }
-    if (clearLibraryError) {
-      setLibraryError("");
-    }
-
-    try {
-      const detail = await getSession(sessionId);
-      const normalized = normalizeSessionDetail(detail);
-      applyHydratedSession(normalized, targetPage);
-      await fetchSessionEventsForSession(normalized.session_id);
-    } catch (err) {
-      const message = err.message || "Falha ao abrir sessao selecionada";
-      if (onError) {
-        onError(message);
-      } else {
-        setError(message);
-      }
-    } finally {
-      if (loadingKey) {
-        setLibraryActionLoading("");
-      }
-    }
-  }
-
-  function startJobSocket(jobId) {
-    if (!jobId) {
-      return;
-    }
-
-    closeActiveJobSocket();
-    jobSocketRef.current = connectJobSocket(
-      jobId,
-      (payload) => {
-        setJob(payload);
-        setSessionFromPayload(payload);
-        if (FINAL_STATES.has(payload.state)) {
-          fetchSessionEventsForSession(payload.session_id, { silent: true });
-          closeActiveJobSocket();
-          setProcessing(false);
-        }
-      },
-      () => {
-        setError("Falha na conexao de progresso em tempo real");
-        setProcessing(false);
-      }
-    );
-  }
-
-  async function fetchLibrarySessions() {
-    setLibraryLoading(true);
-    setLibraryError("");
-
-    try {
-      const response = await listSessions({
-        query: libraryAppliedFilters.query.trim() || undefined,
-        status: libraryAppliedFilters.status || undefined,
-        created_from: toCreatedFromIso(libraryAppliedFilters.created_from),
-        created_to: toCreatedToIso(libraryAppliedFilters.created_to),
-        page: libraryPage,
-        page_size: LIBRARY_PAGE_SIZE,
-      });
-      setLibraryPayload(response);
-    } catch (err) {
-      setLibraryError(err.message || "Falha ao carregar sessoes da biblioteca");
-    } finally {
-      setLibraryLoading(false);
-    }
-  }
-
-  async function openSessionFromLibrary(sessionId, targetPage) {
-    await hydrateSessionAndNavigate(sessionId, targetPage, {
-      loadingKey: `open:${sessionId}`,
-      clearLibraryError: true,
-      onError: (message) => setLibraryError(message),
-    });
-  }
-
-  async function handleDuplicateFromLibrary(sessionId) {
-    setLibraryActionLoading(`duplicate:${sessionId}`);
-    setLibraryError("");
-
-    try {
-      const response = await duplicateSession(sessionId);
-      setLibraryActionMessage(
-        `Sessao ${response.session_code || "nova"} duplicada e processamento iniciado.`
-      );
-      await fetchLibrarySessions();
-    } catch (err) {
-      setLibraryError(err.message || "Falha ao duplicar sessao");
-    } finally {
-      setLibraryActionLoading("");
-    }
-  }
-
-  async function handleReprocessFromLibrary(sessionId) {
-    setLibraryActionLoading(`reprocess:${sessionId}`);
-    setLibraryError("");
-
-    try {
-      const response = await reprocessSession(sessionId);
-      setLibraryActionMessage(
-        `Reprocessamento iniciado para a sessao ${response.session_code || "selecionada"}.`
-      );
-      await fetchLibrarySessions();
-    } catch (err) {
-      setLibraryError(err.message || "Falha ao reprocessar sessao");
-    } finally {
-      setLibraryActionLoading("");
-    }
-  }
-
-  function handleApplyLibraryFilters() {
-    setLibraryPage(1);
-    setLibraryActionMessage("");
-    setLibraryAppliedFilters({
-      query: libraryFilters.query,
-      status: libraryFilters.status,
-      created_from: libraryFilters.created_from,
-      created_to: libraryFilters.created_to,
-    });
-  }
-
-  function handleClearLibraryFilters() {
-    const empty = {
-      query: "",
-      status: "",
-      created_from: "",
-      created_to: "",
-    };
-    setLibraryFilters(empty);
-    setLibraryAppliedFilters(empty);
-    setLibraryPage(1);
-    setLibraryActionMessage("");
-  }
-
   useEffect(() => {
     return () => {
       Object.values(previewTimersRef.current).forEach((timerId) => window.clearTimeout(timerId));
       previewTimersRef.current = {};
-      closeActiveJobSocket();
-      if (mixSaveTimerRef.current) {
-        window.clearTimeout(mixSaveTimerRef.current);
-      }
     };
   }, []);
-
-  useEffect(() => {
-    if (currentPage !== PAGES.library) {
-      return;
-    }
-    fetchLibrarySessions();
-  }, [currentPage, libraryAppliedFilters, libraryPage]);
-
-  useEffect(() => {
-    if (initialRouteAppliedRef.current) {
-      return;
-    }
-
-    initialRouteAppliedRef.current = true;
-    const params = new URLSearchParams(window.location.search);
-    const requestedPage = params.get("page") || PAGES.discover;
-    const targetPage = VALID_PAGE_SET.has(requestedPage) ? requestedPage : PAGES.discover;
-
-    setCurrentPage(targetPage);
-    setRouteReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!routeReady) {
-      return;
-    }
-
-    const params = new URLSearchParams(window.location.search);
-    if (currentPage === PAGES.discover) {
-      params.delete("page");
-    } else {
-      params.set("page", currentPage);
-    }
-    params.delete("session");
-
-    const nextQuery = params.toString();
-    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
-    const currentUrl = `${window.location.pathname}${window.location.search}`;
-
-    if (nextUrl !== currentUrl) {
-      window.history.replaceState({}, "", nextUrl);
-    }
-  }, [routeReady, currentPage]);
-
-  useEffect(() => {
-    if (currentPage !== PAGES.session) {
-      return;
-    }
-
-    const sessionId = job?.session_id || currentSession.session_id;
-    if (!sessionId) {
-      return;
-    }
-
-    fetchSessionEventsForSession(sessionId);
-
-    if (FINAL_STATES.has(job?.state)) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      fetchSessionEventsForSession(sessionId, { silent: true });
-    }, 5000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [currentPage, job?.session_id, job?.state, currentSession.session_id]);
 
   useEffect(() => {
     if (!job?.job_id || job.state !== "ready" || !stemsList.length) {
@@ -645,134 +208,6 @@ export default function App() {
     };
   }, [job?.job_id, job?.state, stemsList]);
 
-  useEffect(() => {
-    if (currentPage !== PAGES.workspace) {
-      return;
-    }
-
-    const sessionId = job?.session_id || currentSession.session_id;
-    if (!sessionId) {
-      return;
-    }
-
-    if (loadedMixSessionRef.current === sessionId) {
-      return;
-    }
-
-    let active = true;
-    setMixStateLoading(true);
-    setMixStateError("");
-
-    (async () => {
-      try {
-        const response = await getMixState(sessionId);
-        if (!active) {
-          return;
-        }
-
-        const levels = mixStateResponseToLevels(response);
-        setMixLevels(levels);
-        loadedMixSessionRef.current = sessionId;
-        lastPersistedMixPayloadRef.current = serializeMixPayload(buildMixStateUpdatePayload(levels));
-      } catch (err) {
-        if (!active) {
-          return;
-        }
-
-        setMixStateError(err.message || "Falha ao carregar mix-state da sessao");
-        loadedMixSessionRef.current = sessionId;
-      } finally {
-        if (active) {
-          setMixStateLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [currentPage, job?.session_id, currentSession.session_id]);
-
-  useEffect(() => {
-    if (currentPage !== PAGES.workspace) {
-      return;
-    }
-
-    const sessionId = job?.session_id || currentSession.session_id;
-    if (!sessionId || mixStateLoading) {
-      return;
-    }
-
-    const payload = buildMixStateUpdatePayload(mixLevels);
-    const serialized = serializeMixPayload(payload);
-
-    if (serialized === lastPersistedMixPayloadRef.current) {
-      return;
-    }
-
-    if (mixSaveTimerRef.current) {
-      window.clearTimeout(mixSaveTimerRef.current);
-    }
-
-    mixSaveTimerRef.current = window.setTimeout(async () => {
-      setMixStateSaving(true);
-      setMixStateError("");
-
-      try {
-        await updateMixState(sessionId, payload);
-        lastPersistedMixPayloadRef.current = serialized;
-      } catch (err) {
-        setMixStateError(err.message || "Falha ao salvar mix-state da sessao");
-      } finally {
-        setMixStateSaving(false);
-      }
-    }, 650);
-
-    return () => {
-      if (mixSaveTimerRef.current) {
-        window.clearTimeout(mixSaveTimerRef.current);
-      }
-    };
-  }, [mixLevels, currentPage, job?.session_id, currentSession.session_id, mixStateLoading]);
-
-  useEffect(() => {
-    if (currentPage !== PAGES.workspace) {
-      return;
-    }
-
-    const sessionId = job?.session_id || currentSession.session_id;
-    if (!sessionId) {
-      setExportJobs([]);
-      return;
-    }
-
-    fetchExportJobsForSession(sessionId);
-  }, [currentPage, job?.session_id, currentSession.session_id]);
-
-  useEffect(() => {
-    if (currentPage !== PAGES.workspace) {
-      return;
-    }
-
-    const sessionId = job?.session_id || currentSession.session_id;
-    if (!sessionId) {
-      return;
-    }
-
-    const hasActiveExport = exportJobs.some((exportJob) => EXPORT_ACTIVE_STATES.has(exportJob.state));
-    if (!hasActiveExport) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      fetchExportJobsForSession(sessionId, { silent: true });
-    }, 4000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [currentPage, job?.session_id, currentSession.session_id, exportJobs]);
-
   async function runSearch(queryValue = query.trim()) {
     setError("");
 
@@ -791,16 +226,6 @@ export default function App() {
       setSelectedSourceId(recommendedSourceId);
       setLastSearchQuery(queryValue);
       setJob(null);
-      setSessionEvents([]);
-      setSessionEventsError("");
-      setMixLevels(DEFAULT_MIX_LEVELS);
-      setMixStateError("");
-      setExportJobs([]);
-      setExportJobsError("");
-      setExportActionMessage("");
-      loadedMixSessionRef.current = "";
-      lastPersistedMixPayloadRef.current = serializeMixPayload(buildMixStateUpdatePayload(DEFAULT_MIX_LEVELS));
-      clearSession();
 
       if (!nextCandidates.length) {
         setError("Nenhum resultado encontrado para a busca informada");
@@ -849,31 +274,32 @@ export default function App() {
 
     try {
       setProcessing(true);
-      setSessionEvents([]);
-      setSessionEventsError("");
-      setExportJobs([]);
-      setExportJobsError("");
-      setExportActionMessage("");
       const response = await createProcessJob(normalizedQuery, activeSelectedSourceId || undefined);
       setCurrentPage(PAGES.session);
 
-      const nextJob = {
+      setJob({
         job_id: response.job_id,
         session_id: response.session_id,
         session_code: response.session_code,
         state: "queued",
         progress: 0,
         message: "Job criado. Aguardando processamento...",
-      };
+      });
 
-      setJob(nextJob);
-      setSessionFromPayload(nextJob);
-      loadedMixSessionRef.current = "";
-      startJobSocket(response.job_id);
-
-      if (response.session_id) {
-        fetchSessionEventsForSession(response.session_id, { silent: true });
-      }
+      const socket = connectJobSocket(
+        response.job_id,
+        (payload) => {
+          setJob(payload);
+          if (FINAL_STATES.has(payload.state)) {
+            socket.close();
+            setProcessing(false);
+          }
+        },
+        () => {
+          setError("Falha na conexão de progresso em tempo real");
+          setProcessing(false);
+        }
+      );
     } catch (err) {
       setError(err.message || "Falha ao iniciar processamento");
       setProcessing(false);
@@ -914,6 +340,545 @@ export default function App() {
       audio.pause();
       audio.currentTime = 0;
     }, 10000);
+  }
+
+  function renderDiscoverPage() {
+    return (
+      <div className="main-grid">
+        <section className="card hero-card animate-up">
+          <span className="kicker">Fluxo principal</span>
+          <h1 className="hero-headline">Transforme uma musica em stems prontos para estudo ou criacao.</h1>
+          <p className="hero-copy">
+            Nova interface em React com foco em acao rapida: buscar, comparar fontes, selecionar e iniciar sessao
+            com feedback continuo de progresso.
+          </p>
+
+          <form className="field-grid" onSubmit={handleSubmit}>
+            <label htmlFor="query">Buscar faixa ou colar URL</label>
+            <div className="input-row">
+              <input
+                id="query"
+                type="text"
+                value={query}
+                placeholder="Ex: Basket Case Green Day ou URL do YouTube"
+                onChange={(event) => setQuery(event.target.value)}
+                disabled={processing}
+              />
+              <button type="button" className="btn btn-subtle" onClick={() => runSearch()} disabled={loading}>
+                {searching ? "Buscando..." : "Buscar fontes"}
+              </button>
+              <button type="submit" className="btn btn-accent" disabled={loading}>
+                {processing ? "Processando..." : "Iniciar sessao"}
+              </button>
+            </div>
+          </form>
+
+          {candidates.length > 0 && (
+            <div className="source-list">
+              {candidates.map((candidate, index) => {
+                const isSelected = selectedSourceId === candidate.source_id;
+                return (
+                  <article
+                    key={candidate.source_id}
+                    className={`source-item ${isSelected ? "selected" : ""}`}
+                    onClick={() => setSelectedSourceId(candidate.source_id)}
+                  >
+                    <div className="source-rank">{index + 1}</div>
+                    <div className="source-main">
+                      <div className="source-title">{candidate.title}</div>
+                      <div className="source-meta">
+                        {candidate.artist} | {formatDuration(candidate.duration_seconds)} | {candidate.source}
+                      </div>
+                    </div>
+                    <div className="source-actions">
+                      <label className="pick-wrap" onClick={(event) => event.stopPropagation()}>
+                        <input
+                          type="radio"
+                          name="selected-source"
+                          checked={isSelected}
+                          onChange={() => setSelectedSourceId(candidate.source_id)}
+                        />
+                        <span>Selecionar</span>
+                      </label>
+                      <a
+                        href={candidate.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="source-link"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        Abrir
+                      </a>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+
+          {selectedCandidate && (
+            <p className="inline-note">
+              Sessao atual: <strong>{sessionCode}</strong> | <strong>{selectedCandidate.title}</strong>
+            </p>
+          )}
+
+          {error && <p className="error-banner">{error}</p>}
+        </section>
+
+        <aside className="stack">
+          <section className="card animate-up" style={{ animationDelay: "80ms" }}>
+            <h3>Resumo rapido</h3>
+            <div className="metric-grid" style={{ marginTop: 10 }}>
+              <div className="metric">
+                <div className="label">Tempo medio</div>
+                <div className="value">2m 40s</div>
+              </div>
+              <div className="metric">
+                <div className="label">Sucesso</div>
+                <div className="value">98.2%</div>
+              </div>
+              <div className="metric">
+                <div className="label">Fila atual</div>
+                <div className="value">{processing ? "1 job" : "0 jobs"}</div>
+              </div>
+              <div className="metric">
+                <div className="label">Modelo</div>
+                <div className="value">htdemucs</div>
+              </div>
+            </div>
+          </section>
+
+          <section className="card animate-up" style={{ animationDelay: "150ms" }}>
+            <h3>Sessoes recentes</h3>
+            <div className="session-list" style={{ marginTop: 10 }}>
+              <article className="session-item">
+                <div>
+                  <div className="title">MX-023 | Daft Punk - Get Lucky</div>
+                  <div className="meta">Hoje, 14:02 | 4 stems exportados</div>
+                </div>
+                <span className="state ready">Pronta</span>
+              </article>
+
+              <article className="session-item">
+                <div>
+                  <div className="title">MX-022 | Billie Jean - Live Edit</div>
+                  <div className="meta">Hoje, 13:44 | aguardando download</div>
+                </div>
+                <span className="state download">Baixando</span>
+              </article>
+
+              <article className="session-item">
+                <div>
+                  <div className="title">MX-021 | Shape of You - Acoustic</div>
+                  <div className="meta">Hoje, 12:58 | ajuste de fonte</div>
+                </div>
+                <span className="state failed">Falhou</span>
+              </article>
+            </div>
+          </section>
+        </aside>
+      </div>
+    );
+  }
+
+  function renderSessionPage() {
+    const hasJob = Boolean(job);
+    const isReady = job?.state === "ready";
+    const stateClass = getStateBadgeClass(job?.state);
+    const stateLabel = getStateBadgeLabel(job?.state);
+
+    return (
+      <>
+        <div className="page-title-row animate-up">
+          <div>
+            <h1>Processamento da sessao {sessionCode}</h1>
+            <p>
+              Acompanhe o estado em tempo real do pipeline. O identificador tecnico continua no backend, enquanto a
+              interface usa um codigo amigavel.
+            </p>
+          </div>
+          <span className={`state ${stateClass}`}>{stateLabel}</span>
+        </div>
+
+        {!hasJob && (
+          <section className="card empty-state" style={{ marginTop: 12 }}>
+            <h3>Nenhuma sessao ativa</h3>
+            <p>Inicie uma busca em Descobrir para acompanhar um processamento.</p>
+            <button className="btn btn-primary" type="button" onClick={() => setCurrentPage(PAGES.discover)}>
+              Ir para Descobrir
+            </button>
+          </section>
+        )}
+
+        {hasJob && (
+          <section className="card animate-up" style={{ marginTop: 12, animationDelay: "70ms" }}>
+            <div className="timeline">
+              <article
+                className={`step ${job.state !== "queued" ? "done" : "live"}`}
+              >
+                <div className="name">1. Fonte validada</div>
+                <div className="meta">Codigo {sessionCode}</div>
+              </article>
+              <article className={`step ${job.state === "downloading" || job.state === "separating" || job.state === "ready" ? "done" : ""}`}>
+                <div className="name">2. Download</div>
+                <div className="meta">Estado downloading</div>
+              </article>
+              <article className={`step ${job.state === "separating" ? "live" : job.state === "ready" ? "done" : ""}`}>
+                <div className="name">3. Separacao de stems</div>
+                <div className="meta">Estado separating</div>
+              </article>
+              <article className={`step ${job.state === "ready" ? "done" : job.state === "failed" ? "failed" : ""}`}>
+                <div className="name">4. Finalizacao</div>
+                <div className="meta">Estado ready</div>
+              </article>
+            </div>
+
+            <div className="progress-panel">
+              <div className="progress-rail">
+                <i style={{ width: `${job.progress || 0}%` }} />
+              </div>
+              <div className="progress-captions">
+                <strong>
+                  Progresso geral <span>{job.progress || 0}%</span>
+                </strong>
+                <span>{job.message || "Aguardando atualizacoes"}</span>
+              </div>
+            </div>
+
+            <div className="main-grid" style={{ marginTop: 12 }}>
+              <div className="card wave-preview">
+                <h3>Pre-visualizacao de analise</h3>
+
+                {!isReady && (
+                  <>
+                    <div className="wave-bars" aria-hidden="true">
+                      {new Array(16).fill(null).map((_, index) => (
+                        <span
+                          key={`bar-${index}`}
+                          style={{
+                            height: `${22 + ((index * 11) % 63)}%`,
+                            "--delay": `${index * 0.04}s`,
+                          }}
+                        />
+                      ))}
+                    </div>
+
+                    {processingFacts && (
+                      <div className="analysis-facts">
+                        <span className="fact-chip">
+                          Analisado: {processingFacts.analyzed} / {processingFacts.total}
+                        </span>
+                        <span className="fact-chip">Restante estimado: {processingFacts.remaining}</span>
+                      </div>
+                    )}
+
+                    <p className="inline-note">
+                      {job.error ? `Erro: ${job.error}` : "Pipeline em execucao com atualizacao ao vivo."}
+                    </p>
+                  </>
+                )}
+
+                {isReady && (
+                  <>
+                    <p className="inline-note">Stems extraidos. Confira energia relativa e ouca um preview curto.</p>
+                    <div className="preview-grid">
+                      {sessionStemPreview.map((item) => (
+                        <article className="stem-preview-card" key={item.stemName}>
+                          <div className="stem-preview-head">
+                            <strong>{item.stemName}</strong>
+                            <span>{item.energy}% energia</span>
+                          </div>
+
+                          <div className="energy-track" aria-hidden="true">
+                            <i style={{ width: `${item.energy}%` }} />
+                          </div>
+
+                          <div className="stem-preview-meta">
+                            <span>{item.fileName}</span>
+                            <span>{item.fileSizeLabel}</span>
+                          </div>
+
+                          <audio
+                            ref={(node) => setStemAudioRef(item.stemName, node)}
+                            className="preview-audio"
+                            controls
+                            preload="metadata"
+                            src={item.audioUrl}
+                          />
+
+                          <button
+                            className="btn btn-subtle preview-btn"
+                            type="button"
+                            onClick={() => handlePlayStemPreview(item.stemName)}
+                          >
+                            Preview 10s
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="stack">
+                <section className="card">
+                  <h3>Telemetria da sessao</h3>
+                  <div className="metric-grid" style={{ marginTop: 10 }}>
+                    <div className="metric">
+                      <div className="label">Sessao</div>
+                      <div className="value">{sessionCode}</div>
+                    </div>
+                    <div className="metric">
+                      <div className="label">Estado</div>
+                      <div className="value">{job.state || "queued"}</div>
+                    </div>
+                    <div className="metric">
+                      <div className="label">Progresso</div>
+                      <div className="value">{job.progress || 0}%</div>
+                    </div>
+                    <div className="metric">
+                      <div className="label">Fonte</div>
+                      <div className="value short">{job.selected_track?.source || "youtube"}</div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="card">
+                  <h3>Log de eventos</h3>
+                  <div className="session-list" style={{ marginTop: 10 }}>
+                    <article className="session-item">
+                      <div>
+                        <div className="title">Sessao iniciada</div>
+                        <div className="meta">{job.selected_track?.title || "Fonte selecionada"}</div>
+                      </div>
+                      <span className="state ready">ok</span>
+                    </article>
+                    <article className="session-item">
+                      <div>
+                        <div className="title">Etapa atual</div>
+                        <div className="meta">{job.message || "Aguardando"}</div>
+                      </div>
+                      <span className={`state ${stateClass}`}>{stateLabel}</span>
+                    </article>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            {job.state === "ready" && (
+              <div className="session-actions">
+                <button className="btn btn-primary" type="button" onClick={() => setCurrentPage(PAGES.workspace)}>
+                  Ir para workspace
+                </button>
+              </div>
+            )}
+
+            {error && <p className="error-banner">{error}</p>}
+          </section>
+        )}
+      </>
+    );
+  }
+
+  function renderWorkspacePage() {
+    const isReady = job?.state === "ready";
+    const stemsToRender = stemsList.length
+      ? stemsList
+      : STEM_ORDER.map((stemName) => [stemName, `${stemName}.wav`]);
+
+    return (
+      <>
+        <div className="page-title-row animate-up">
+          <div>
+            <h1>Workspace de stems {sessionCode !== "MX-000" ? `(${sessionCode})` : ""}</h1>
+            <p>Controle de niveis por stem e organizacao para exportacao. Primeira fase de migracao no React.</p>
+          </div>
+          <span className={`state ${isReady ? "ready" : "processing"}`}>{isReady ? "Pronta" : "Aguardando"}</span>
+        </div>
+
+        {!job && (
+          <section className="card empty-state" style={{ marginTop: 12 }}>
+            <h3>Nenhuma sessao carregada</h3>
+            <p>Inicie o processamento em Descobrir e acompanhe em Processamento.</p>
+            <button className="btn btn-primary" type="button" onClick={() => setCurrentPage(PAGES.discover)}>
+              Ir para Descobrir
+            </button>
+          </section>
+        )}
+
+        {job && (
+          <div className="main-grid" style={{ marginTop: 14 }}>
+            <section className="card animate-up">
+              <h3>Mixer rapido</h3>
+              <div className="channel-grid">
+                {stemsToRender.map(([stemName]) => (
+                  <article className="channel" key={stemName}>
+                    <div className="channel-head">
+                      <span className="channel-name">{stemName}</span>
+                      <div className="channel-controls">
+                        <button className="pill-btn" type="button">
+                          Solo
+                        </button>
+                        <button className="pill-btn" type="button">
+                          Mute
+                        </button>
+                      </div>
+                    </div>
+                    <div className="slider-wrap">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={mixLevels[stemName] ?? 60}
+                        onChange={(event) => updateMixLevel(stemName, Number(event.target.value))}
+                        disabled={!isReady}
+                      />
+                      <div className="slider-meta">
+                        <span>Nivel</span>
+                        <strong>{mixLevels[stemName] ?? 60}%</strong>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <section className="card wave-preview" style={{ marginTop: 12 }}>
+                <h3>Master output</h3>
+                <div className="slider-wrap" style={{ marginTop: 10 }}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={mixLevels.master}
+                    onChange={(event) => updateMixLevel("master", Number(event.target.value))}
+                    disabled={!isReady}
+                  />
+                  <div className="slider-meta">
+                    <span>Master gain</span>
+                    <strong>{mixLevels.master}%</strong>
+                  </div>
+                </div>
+              </section>
+            </section>
+
+            <aside className="stack animate-up" style={{ animationDelay: "90ms" }}>
+              <section className="card">
+                <h3>Exportacao</h3>
+                <div className="session-list" style={{ marginTop: 10 }}>
+                  <article className="session-item">
+                    <div>
+                      <div className="title">Preset Practice</div>
+                      <div className="meta">Vocals +8, drums +4, bass -8</div>
+                    </div>
+                    <button className="btn btn-subtle" type="button">
+                      Aplicar
+                    </button>
+                  </article>
+                  <article className="session-item">
+                    <div>
+                      <div className="title">Preset Karaoke</div>
+                      <div className="meta">Vocals 0, instrumental +10</div>
+                    </div>
+                    <button className="btn btn-subtle" type="button">
+                      Aplicar
+                    </button>
+                  </article>
+                </div>
+                <div className="input-row" style={{ marginTop: 10 }}>
+                  <button className="btn btn-primary" type="button" disabled={!isReady}>
+                    Exportar mix
+                  </button>
+                  <button className="btn btn-accent" type="button" disabled={!isReady}>
+                    Baixar stems
+                  </button>
+                </div>
+              </section>
+
+              <section className="card">
+                <h3>Arquivos da sessao</h3>
+                <table className="library-table" aria-label="arquivos de stems">
+                  <thead>
+                    <tr>
+                      <th>Stem</th>
+                      <th>Formato</th>
+                      <th>Arquivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stemsToRender.map(([stemName, path]) => (
+                      <tr key={stemName}>
+                        <td>{stemName}</td>
+                        <td>WAV</td>
+                        <td>{toFileName(path)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="footer-note">Identidade de sessao na interface: {sessionCode}.</p>
+              </section>
+            </aside>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  function renderLibraryPage() {
+    return (
+      <>
+        <div className="page-title-row animate-up">
+          <div>
+            <h1>Biblioteca de sessoes</h1>
+            <p>Historico inicial em React para retomar sessoes sem exposicao de identificadores tecnicos.</p>
+          </div>
+          <span className="state ready">Organizada</span>
+        </div>
+
+        <section className="card animate-up" style={{ marginTop: 12, animationDelay: "60ms" }}>
+          <div className="search-filter">
+            <input type="text" value="basket" readOnly aria-label="buscar na biblioteca" />
+            <select aria-label="filtro de estado" defaultValue="Todos os estados">
+              <option>Todos os estados</option>
+              <option>Pronta</option>
+              <option>Processando</option>
+              <option>Falhou</option>
+            </select>
+            <button className="btn btn-subtle" type="button">
+              Aplicar filtros
+            </button>
+          </div>
+
+          <table className="library-table" aria-label="historico de sessoes" style={{ marginTop: 12 }}>
+            <thead>
+              <tr>
+                <th>Sessao</th>
+                <th>Faixa</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {job && (
+                <tr>
+                  <td>{sessionCode}</td>
+                  <td>{job.selected_track?.title || "Sessao atual"}</td>
+                  <td>{getStateBadgeLabel(job.state)}</td>
+                </tr>
+              )}
+              <tr>
+                <td>MX-023</td>
+                <td>Get Lucky - Topic Source</td>
+                <td>Pronta</td>
+              </tr>
+              <tr>
+                <td>MX-022</td>
+                <td>Billie Jean - Live Edit</td>
+                <td>Processando</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </>
+    );
   }
 
   return (
@@ -964,19 +929,6 @@ export default function App() {
             className="btn btn-primary"
             type="button"
             onClick={() => {
-              closeActiveJobSocket();
-              setProcessing(false);
-              setJob(null);
-              setSessionEvents([]);
-              setSessionEventsError("");
-              setMixLevels(DEFAULT_MIX_LEVELS);
-              setMixStateError("");
-              setExportJobs([]);
-              setExportJobsError("");
-              setExportActionMessage("");
-              loadedMixSessionRef.current = "";
-              lastPersistedMixPayloadRef.current = serializeMixPayload(buildMixStateUpdatePayload(DEFAULT_MIX_LEVELS));
-              clearSession();
               setCurrentPage(PAGES.discover);
               setError("");
             }}
@@ -986,108 +938,10 @@ export default function App() {
         </div>
       </header>
 
-      {currentPage === PAGES.discover && (
-        <DiscoverPage
-          handleSubmit={handleSubmit}
-          query={query}
-          setQuery={setQuery}
-          processing={processing}
-          runSearch={runSearch}
-          loading={loading}
-          searching={searching}
-          candidates={candidates}
-          selectedSourceId={selectedSourceId}
-          setSelectedSourceId={setSelectedSourceId}
-          formatDuration={formatDuration}
-          selectedCandidate={selectedCandidate}
-          sessionCode={sessionCode}
-          error={error}
-        />
-      )}
-
-      {currentPage === PAGES.session && (
-        <SessionPage
-          job={job}
-          sessionCode={sessionCode}
-          error={error}
-          processingFacts={processingFacts}
-          sessionStemPreview={sessionStemPreview}
-          setStemAudioRef={setStemAudioRef}
-          handlePlayStemPreview={handlePlayStemPreview}
-          sessionEvents={sessionEvents}
-          sessionEventsLoading={sessionEventsLoading}
-          sessionEventsError={sessionEventsError}
-          getStateBadgeClass={getStateBadgeClass}
-          getStateBadgeLabel={getStateBadgeLabel}
-          onGoDiscover={() => setCurrentPage(PAGES.discover)}
-          onGoWorkspace={() => setCurrentPage(PAGES.workspace)}
-        />
-      )}
-
-      {currentPage === PAGES.workspace && (
-        <WorkspacePage
-          job={job}
-          sessionCode={sessionCode}
-          stemsList={stemsList}
-          getStemAudioUrl={getStemAudioUrl}
-          mixLevels={mixLevels}
-          updateMixLevel={updateMixLevel}
-          mixStateLoading={mixStateLoading}
-          mixStateSaving={mixStateSaving}
-          mixStateError={mixStateError}
-          exportJobs={exportJobs}
-          exportJobsLoading={exportJobsLoading}
-          exportJobsError={exportJobsError}
-          exportActionLoading={exportActionLoading}
-          exportActionMessage={exportActionMessage}
-          onCreateStudyMixExport={() => createExportForSession("study_mix", "wav")}
-          onCreateStemsExport={() => createExportForSession("stems", "zip")}
-          onCreateCustomExport={() =>
-            createExportForSession("custom", "zip", {
-              include_mix: true,
-              include_stems: true,
-            })
-          }
-          onRetryExport={handleRetryExport}
-          onRefreshExports={handleRefreshExports}
-          getExportFileUrl={getExportFileUrl}
-          masterMetrics={job?.master_metrics || null}
-          toFileName={toFileName}
-          onGoDiscover={() => setCurrentPage(PAGES.discover)}
-        />
-      )}
-
-      {currentPage === PAGES.library && (
-        <LibraryPage
-          sessions={libraryPayload.items || []}
-          total={libraryPayload.total || 0}
-          page={libraryPage}
-          totalPages={libraryTotalPages}
-          filters={libraryFilters}
-          loading={libraryLoading}
-          error={libraryError}
-          actionLoading={libraryActionLoading}
-          actionMessage={libraryActionMessage}
-          getStateBadgeLabel={getStateBadgeLabel}
-          getStateBadgeClass={getStateBadgeClass}
-          onFilterChange={(name, value) =>
-            setLibraryFilters((previous) => ({
-              ...previous,
-              [name]: value,
-            }))
-          }
-          onApplyFilters={handleApplyLibraryFilters}
-          onClearFilters={handleClearLibraryFilters}
-          onRetry={fetchLibrarySessions}
-          onPrevPage={() => setLibraryPage((previous) => Math.max(1, previous - 1))}
-          onNextPage={() => setLibraryPage((previous) => Math.min(libraryTotalPages, previous + 1))}
-          onOpenWorkspace={(sessionId) => openSessionFromLibrary(sessionId, PAGES.workspace)}
-          onTrackSession={(sessionId) => openSessionFromLibrary(sessionId, PAGES.session)}
-          onDuplicate={handleDuplicateFromLibrary}
-          onReprocess={handleReprocessFromLibrary}
-          isProcessingStatus={(status) => PROCESSING_STATES.has(status)}
-        />
-      )}
+      {currentPage === PAGES.discover && renderDiscoverPage()}
+      {currentPage === PAGES.session && renderSessionPage()}
+      {currentPage === PAGES.workspace && renderWorkspacePage()}
+      {currentPage === PAGES.library && renderLibraryPage()}
     </main>
   );
 }

@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_STEMS = ("vocals", "drums", "bass", "other")
-REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 @dataclass(frozen=True)
@@ -12,7 +11,6 @@ class Settings:
     stems_root: Path
     exports_root: Path
     sessions_db_path: Path
-    ffmpeg_binary: Path | None
     separation_model: str
     separation_device: str
     separation_segment: float
@@ -40,13 +38,6 @@ def _read_int_env(name: str, default: int) -> int:
         return int(raw)
     except ValueError:
         return default
-
-
-def _read_optional_path_env(name: str) -> Path | None:
-    raw = (os.getenv(name) or "").strip()
-    if not raw:
-        return None
-    return Path(raw)
 
 
 def _read_device_env() -> str:
@@ -79,8 +70,7 @@ def _read_target_stems_env() -> tuple[str, ...]:
 
 
 def load_settings() -> Settings:
-    storage_root_env = os.getenv("STORAGE_ROOT")
-    storage_root = Path(storage_root_env) if storage_root_env else (REPO_ROOT / "storage")
+    storage_root = Path(os.getenv("STORAGE_ROOT", "storage"))
     torch_home_default = storage_root / "cache" / "torch"
     sessions_db_default = storage_root / "sessions.db"
     exports_root_default = storage_root / "exports"
@@ -90,7 +80,6 @@ def load_settings() -> Settings:
         stems_root=storage_root / "stems",
         exports_root=Path(os.getenv("EXPORTS_ROOT", str(exports_root_default))),
         sessions_db_path=Path(os.getenv("SESSIONS_DB_PATH", str(sessions_db_default))),
-        ffmpeg_binary=_read_optional_path_env("FFMPEG_BINARY"),
         separation_model=(os.getenv("SEPARATION_MODEL", "htdemucs") or "htdemucs").strip(),
         separation_device=_read_device_env(),
         separation_segment=_read_float_env("SEPARATION_SEGMENT", 7.0),

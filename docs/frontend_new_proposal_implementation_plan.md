@@ -20,42 +20,6 @@ Implementar no frontend React a proposta visual e funcional de Descobrir, Proces
 4. Salvar estado de mixer com debounce para evitar excesso de requests.
 5. Fechar com testes de fluxo ponta a ponta do journey completo.
 
-## Status de execucao atual (2026-04-18)
-
-### Concluido
-1. Fase 1 finalizada: modularizacao por paginas e session context em producao.
-2. Fase 2 finalizada: Biblioteca conectada com filtros, paginacao, abrir, duplicar e reprocessar.
-3. Fase 3 finalizada: Processamento com hydrate de sessao, eventos reais, ETA e separation_device.
-4. Fase 4 finalizada: Workspace com load/save de mix-state (debounce + diff) e master_metrics.
-5. Fase 5 finalizada: Exportacao real com create/list/poll/retry/download por sessao.
-6. Fase 6 finalizada: Descobrir com compatibility_score e compatibility_breakdown do backend.
-
-### Validacao tecnica recente
-1. Build frontend em producao executado com sucesso (`npm run build`).
-2. Sem erros no editor para `frontend/src` apos as ultimas alteracoes.
-3. Verificacao de disponibilidade local por script indica backend/frontend fora do ar no momento, entao a validacao funcional fim-a-fim depende de subir os servicos.
-4. Smoke test local de backend via JobService validou fluxo minimo de sessao, persistencia de mix-state e export (`export_state=ready`).
-
-### Fase 7 executada (QA final)
-1. Servicos locais iniciados com sucesso:
-- backend em `http://localhost:8000`
-- frontend em `http://localhost:5173`
-2. Checklist funcional validado por API:
-- Descobrir: `/api/search` retornando candidatos com `compatibility_score` e `compatibility_breakdown`.
-- Processamento: `/api/sessions/{id}` e `/events` retornando estado e historico de eventos.
-- Workspace: `GET/PUT /mix-state` validado com persistencia de ajuste de master_gain.
-- Export: `POST/GET /exports` validado com estado `ready` e arquivo de download disponivel.
-3. Checklist de UI validado no frontend local:
-- Descobrir carregando resultados reais e score de compatibilidade.
-- Biblioteca listando sessoes reais com acoes por linha.
-- Workspace abrindo sessao da biblioteca e criando export com sucesso.
-- Processamento exibindo telemetria e log de eventos reais.
-4. Correcao aplicada durante QA:
-- Endpoint de stems recebeu suporte explicito a HEAD em `backend/app/main.py`, eliminando erro 405 observado no browser ao ler tamanho dos stems.
-
-### Pendencia residual
-1. Confirmar responsividade manual completa em viewport mobile dedicado (layout estrutural esta responsivo, mas falta checklist visual formal de aceite mobile).
-
 ## Roadmap por fase
 
 ## Fase 1 - Estrutura e fundacao do front

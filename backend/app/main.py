@@ -231,7 +231,8 @@ async def get_job(job_id: str) -> dict:
     return job.model_dump(mode="json")
 
 
-async def _resolve_job_stem_file(job_id: str, stem_name: str) -> Path:
+@app.get("/api/jobs/{job_id}/stems/{stem_name}.wav")
+async def get_job_stem_audio(job_id: str, stem_name: str) -> FileResponse:
     if stem_name not in {"vocals", "drums", "bass", "other"}:
         raise HTTPException(status_code=404, detail="Stem not found")
 
@@ -249,20 +250,6 @@ async def _resolve_job_stem_file(job_id: str, stem_name: str) -> Path:
 
     if not requested_file.is_file():
         raise HTTPException(status_code=404, detail="Stem file is unavailable")
-
-    return requested_file
-
-
-@app.get("/api/jobs/{job_id}/stems/{stem_name}.wav")
-async def get_job_stem_audio(job_id: str, stem_name: str) -> FileResponse:
-    requested_file = await _resolve_job_stem_file(job_id, stem_name)
-
-    return FileResponse(path=requested_file, media_type="audio/wav", filename=f"{stem_name}.wav")
-
-
-@app.head("/api/jobs/{job_id}/stems/{stem_name}.wav")
-async def head_job_stem_audio(job_id: str, stem_name: str) -> FileResponse:
-    requested_file = await _resolve_job_stem_file(job_id, stem_name)
 
     return FileResponse(path=requested_file, media_type="audio/wav", filename=f"{stem_name}.wav")
 
