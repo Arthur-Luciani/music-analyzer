@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Analyzer UI Proposal - Processamento</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-page="session">
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html">
+        <span class="brand-badge">MX</span>
+        <span class="brand-title">
+          <strong>Music Analyzer</strong>
+          <span>Studio Workspace</span>
+        </span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="./index.html" data-page-link="discover">Descobrir</a>
+        <a href="./session.html" data-page-link="session">Processamento</a>
+        <a href="./workspace.html" data-page-link="workspace">Workspace</a>
+        <a href="./library.html" data-page-link="library">Biblioteca</a>
+      </nav>
+
+      <div class="topbar-right">
+        <span class="user-chip mono">Sessao ativa: MX-024</span>
+        <a class="btn btn-subtle" href="./workspace.html">Abrir workspace</a>
+      </div>
+    </header>
+
+    <div class="page-title-row animate-up">
+      <div>
+        <h1>2. Processamento em andamento</h1>
+        <p>Aqui so existe uma tarefa: acompanhar o progresso ate o workspace ficar pronto para mix.</p>
+      </div>
+      <span class="state processing">Separando</span>
+    </div>
+
+    <section class="card animate-up" style="margin-top:12px; animation-delay:70ms">
+      <div class="timeline">
+        <article class="step done">
+          <div class="name">1. Descobrir</div>
+          <div class="meta">Fonte validada</div>
+        </article>
+        <article class="step done">
+          <div class="name">2. Processamento</div>
+          <div class="meta">Download concluido</div>
+        </article>
+        <article class="step live">
+          <div class="name">3. Separacao</div>
+          <div class="meta">GPU CUDA em execucao</div>
+        </article>
+        <article class="step">
+          <div class="name">4. Workspace</div>
+          <div class="meta">Aguardando termino</div>
+        </article>
+      </div>
+
+      <div class="progress-panel">
+        <div class="progress-rail"><i data-progress-fill></i></div>
+        <div class="progress-captions">
+          <strong>Progresso geral <span data-progress-value>92%</span></strong>
+          <span data-progress-message>Separando stems no modelo htdemucs</span>
+        </div>
+      </div>
+
+      <div class="main-grid" style="margin-top:12px">
+        <div class="card wave-preview">
+          <h3>Sinal da analise em tempo real</h3>
+          <div class="wave-bars" aria-hidden="true">
+            <span style="height:14%; --delay:0.02s"></span>
+            <span style="height:34%; --delay:0.06s"></span>
+            <span style="height:52%; --delay:0.10s"></span>
+            <span style="height:70%; --delay:0.14s"></span>
+            <span style="height:45%; --delay:0.18s"></span>
+            <span style="height:66%; --delay:0.22s"></span>
+            <span style="height:83%; --delay:0.26s"></span>
+            <span style="height:72%; --delay:0.30s"></span>
+            <span style="height:38%; --delay:0.34s"></span>
+            <span style="height:56%; --delay:0.38s"></span>
+            <span style="height:68%; --delay:0.42s"></span>
+            <span style="height:42%; --delay:0.46s"></span>
+            <span style="height:21%; --delay:0.50s"></span>
+            <span style="height:49%; --delay:0.54s"></span>
+            <span style="height:72%; --delay:0.58s"></span>
+            <span style="height:86%; --delay:0.62s"></span>
+          </div>
+
+          <div class="metric-grid" style="margin-top:10px">
+            <div class="metric">
+              <div class="label">Tempo decorrido</div>
+              <div class="value">1m 52s</div>
+            </div>
+            <div class="metric">
+              <div class="label">Tempo restante</div>
+              <div class="value">20s</div>
+            </div>
+          </div>
+
+          <p class="inline-note">A pre-visualizacao serve apenas para confirmar que a separacao esta ativa.</p>
+        </div>
+
+        <div class="stack">
+          <section class="card action-panel">
+            <h3>Proxima acao</h3>
+            <p class="inline-note" style="margin-top:0">Quando o processo chegar a 100%, o botao de workspace libera a mixagem.</p>
+            <button class="btn btn-primary" type="button" disabled>Workspace liberado ao concluir</button>
+            <div class="kv-list">
+              <div class="kv"><span>Sessao</span><strong class="mono">MX-024</strong></div>
+              <div class="kv"><span>Faixa</span><strong>Basket Case</strong></div>
+              <div class="kv"><span>Modelo</span><strong>htdemucs</strong></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <h3>Eventos recentes</h3>
+            <div class="session-list" style="margin-top:10px">
+              <article class="session-item">
+                <div>
+                  <div class="title">14:37:21 | Sessao iniciada</div>
+                  <div class="meta">Fonte confirmada e fila iniciada</div>
+                </div>
+                <span class="state ready">ok</span>
+              </article>
+              <article class="session-item">
+                <div>
+                  <div class="title">14:37:39 | Download finalizado</div>
+                  <div class="meta">Arquivo base pronto para separacao</div>
+                </div>
+                <span class="state ready">ok</span>
+              </article>
+              <article class="session-item">
+                <div>
+                  <div class="title">14:37:40 | Separacao iniciada</div>
+                  <div class="meta">Etapa final antes do workspace</div>
+                </div>
+                <span class="state processing">ao vivo</span>
+              </article>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer-note">
+      Fluxo simplificado: monitorar progresso aqui e editar audio apenas no workspace.
+    </p>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

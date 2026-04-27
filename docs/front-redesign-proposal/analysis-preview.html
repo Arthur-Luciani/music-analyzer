@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Analyzer UI Proposal - Pré-visualização da Análise</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-page="session">
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html">
+        <span class="brand-badge">MX</span>
+        <span class="brand-title">
+          <strong>Music Analyzer</strong>
+          <span>Studio Workspace</span>
+        </span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="./index.html" data-page-link="discover">Descobrir</a>
+        <a href="./session.html" data-page-link="session">Processamento</a>
+        <a href="./workspace.html" data-page-link="workspace">Workspace</a>
+        <a href="./library.html" data-page-link="library">Biblioteca</a>
+      </nav>
+
+      <div class="topbar-right">
+        <span class="user-chip mono">Sessao ativa: MX-024</span>
+        <a class="btn btn-subtle" href="./session.html">Voltar para sessao</a>
+      </div>
+    </header>
+
+    <div class="page-title-row animate-up">
+      <div>
+        <h1>Pré-visualização da análise</h1>
+        <p>
+          Mock estatico da area de feedback durante a separacao: intensidade por stem, janela temporal e sinais de presenca para tomada rapida de decisao.
+        </p>
+      </div>
+      <span class="state processing">Ao vivo</span>
+    </div>
+
+    <section class="card preview-frame animate-up" style="margin-top:12px; animation-delay:70ms">
+      <div class="preview-head">
+        <div>
+          <h3>Painel de sinais em tempo de processamento</h3>
+          <p class="inline-note">Os valores abaixo sao ilustrativos para direcionar layout e linguagem de produto.</p>
+        </div>
+        <div class="preview-meta-row">
+          <span class="preview-chip">Janela: 0:45-0:55</span>
+          <span class="preview-chip">Atualizacao: 200 ms</span>
+          <span class="preview-chip">Foco: bateria</span>
+        </div>
+      </div>
+
+      <div class="preview-kpis">
+        <article class="preview-kpi">
+          <div class="label">Confianca da leitura</div>
+          <div class="value">Alta</div>
+          <div class="meta">Sinais estaveis em 8 janelas consecutivas</div>
+        </article>
+        <article class="preview-kpi">
+          <div class="label">Stem dominante</div>
+          <div class="value">Drums</div>
+          <div class="meta">Maior energia relativa no trecho atual</div>
+        </article>
+        <article class="preview-kpi">
+          <div class="label">Mudanca detectada</div>
+          <div class="value">+12%</div>
+          <div class="meta">Crescimento no ataque de caixa e pratos</div>
+        </article>
+      </div>
+
+      <div class="preview-body">
+        <section class="card preview-card-lg">
+          <h3>Linha temporal de energia relativa</h3>
+          <div class="timeline-plot" aria-hidden="true">
+            <div class="plot-grid"></div>
+            <div class="plot-bars">
+              <i style="height:26%"></i>
+              <i style="height:30%"></i>
+              <i style="height:34%"></i>
+              <i style="height:49%"></i>
+              <i style="height:42%"></i>
+              <i style="height:55%"></i>
+              <i style="height:62%"></i>
+              <i style="height:58%"></i>
+              <i style="height:67%"></i>
+              <i style="height:74%"></i>
+              <i style="height:70%"></i>
+              <i style="height:79%"></i>
+              <i style="height:73%"></i>
+              <i style="height:66%"></i>
+              <i style="height:61%"></i>
+              <i style="height:57%"></i>
+              <i style="height:63%"></i>
+              <i style="height:69%"></i>
+              <i style="height:65%"></i>
+              <i style="height:72%"></i>
+            </div>
+            <div class="plot-focus">Agora</div>
+          </div>
+          <div class="plot-legend">
+            <span><i class="dot drums"></i>Bateria</span>
+            <span><i class="dot bass"></i>Baixo</span>
+            <span><i class="dot vocals"></i>Voz</span>
+            <span><i class="dot other"></i>Outros</span>
+          </div>
+        </section>
+
+        <div class="stack">
+          <section class="card preview-card-sm">
+            <h3>Presenca por stem</h3>
+            <div class="stem-presence-list">
+              <article class="stem-presence live">
+                <div class="head">
+                  <strong>Drums</strong>
+                  <span class="state ready">presente</span>
+                </div>
+                <div class="stem-rail"><i style="width:84%"></i></div>
+                <small>Energia relativa 0.84</small>
+              </article>
+              <article class="stem-presence">
+                <div class="head">
+                  <strong>Bass</strong>
+                  <span class="state processing">moderado</span>
+                </div>
+                <div class="stem-rail"><i style="width:56%"></i></div>
+                <small>Energia relativa 0.56</small>
+              </article>
+              <article class="stem-presence">
+                <div class="head">
+                  <strong>Vocals</strong>
+                  <span class="state processing">moderado</span>
+                </div>
+                <div class="stem-rail"><i style="width:48%"></i></div>
+                <small>Energia relativa 0.48</small>
+              </article>
+              <article class="stem-presence">
+                <div class="head">
+                  <strong>Other</strong>
+                  <span class="state failed">baixo</span>
+                </div>
+                <div class="stem-rail"><i style="width:29%"></i></div>
+                <small>Energia relativa 0.29</small>
+              </article>
+            </div>
+          </section>
+
+          <section class="card preview-card-sm">
+            <h3>Eventos da analise</h3>
+            <div class="session-list" style="margin-top:10px">
+              <article class="session-item">
+                <div>
+                  <div class="title">14:37:41 | Ataque forte de bateria</div>
+                  <div class="meta">Pico acima de 0.80 por 1.4s</div>
+                </div>
+                <span class="state ready">novo</span>
+              </article>
+              <article class="session-item">
+                <div>
+                  <div class="title">14:37:44 | Voz entrou no trecho</div>
+                  <div class="meta">Transicao de baixo para moderado</div>
+                </div>
+                <span class="state processing">ok</span>
+              </article>
+              <article class="session-item">
+                <div>
+                  <div class="title">14:37:47 | Estabilidade da janela</div>
+                  <div class="meta">Sem variacao critica no fallback</div>
+                </div>
+                <span class="state ready">ok</span>
+              </article>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer-note">
+      Conceito estatico para definir a experiencia de pre-visualizacao antes da implementacao interativa final.
+    </p>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

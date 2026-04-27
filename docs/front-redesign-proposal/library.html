@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Analyzer UI Proposal - Biblioteca</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-page="library">
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html">
+        <span class="brand-badge">MX</span>
+        <span class="brand-title">
+          <strong>Music Analyzer</strong>
+          <span>Studio Workspace</span>
+        </span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="./index.html" data-page-link="discover">Descobrir</a>
+        <a href="./session.html" data-page-link="session">Processamento</a>
+        <a href="./workspace.html" data-page-link="workspace">Workspace</a>
+        <a href="./library.html" data-page-link="library">Biblioteca</a>
+      </nav>
+
+      <div class="topbar-right">
+        <span class="user-chip mono">Historico de sessoes</span>
+        <a class="btn btn-primary" href="./index.html">Nova sessao</a>
+      </div>
+    </header>
+
+    <div class="page-title-row animate-up">
+      <div>
+        <h1>4. Biblioteca: retomar e reutilizar</h1>
+        <p>Ultimo passo da jornada: encontrar uma sessao pronta e continuar do ponto certo.</p>
+      </div>
+      <span class="state ready">Organizada</span>
+    </div>
+
+    <section class="card animate-up" style="margin-top:12px; animation-delay:50ms">
+      <div class="timeline">
+        <article class="step done">
+          <div class="name">1. Descobrir</div>
+          <div class="meta">Fonte definida</div>
+        </article>
+        <article class="step done">
+          <div class="name">2. Processamento</div>
+          <div class="meta">Separacao concluida</div>
+        </article>
+        <article class="step done">
+          <div class="name">3. Workspace</div>
+          <div class="meta">Mixagem realizada</div>
+        </article>
+        <article class="step live">
+          <div class="name">4. Biblioteca</div>
+          <div class="meta">Retomada e reuso</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="card animate-up" style="margin-top:12px; animation-delay:60ms">
+      <div class="search-filter">
+        <input type="text" value="basket" aria-label="buscar na biblioteca" />
+        <select aria-label="filtro de estado">
+          <option>Todas as sessoes</option>
+          <option>Pronta</option>
+          <option>Processando</option>
+          <option>Falhou</option>
+        </select>
+        <button class="btn btn-subtle" type="button">Aplicar filtros</button>
+        <a class="btn btn-accent" href="./index.html">Nova separacao</a>
+      </div>
+
+      <table class="library-table" aria-label="historico de sessoes">
+        <thead>
+          <tr>
+            <th>Sessao</th>
+            <th>Faixa</th>
+            <th>Criada em</th>
+            <th>Status</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">MX-024</td>
+            <td>Basket Case - Studio Cut</td>
+            <td>17/04 14:37</td>
+            <td><span class="state ready">Pronta</span></td>
+            <td>
+              <div class="table-actions">
+                <a class="btn btn-subtle" href="./workspace.html">Abrir workspace</a>
+                <a class="btn btn-subtle" href="./index.html">Duplicar</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="mono">MX-023</td>
+            <td>Get Lucky - Topic Source</td>
+            <td>17/04 14:02</td>
+            <td><span class="state ready">Pronta</span></td>
+            <td>
+              <div class="table-actions">
+                <a class="btn btn-subtle" href="./workspace.html">Abrir workspace</a>
+                <a class="btn btn-subtle" href="./index.html">Duplicar</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="mono">MX-022</td>
+            <td>Billie Jean - Live Edit</td>
+            <td>17/04 13:44</td>
+            <td><span class="state processing">Processando</span></td>
+            <td><a class="btn btn-subtle" href="./session.html">Acompanhar</a></td>
+          </tr>
+          <tr>
+            <td class="mono">MX-021</td>
+            <td>Shape of You - Acoustic</td>
+            <td>17/04 12:58</td>
+            <td><span class="state failed">Falhou</span></td>
+            <td><a class="btn btn-subtle" href="./index.html">Reprocessar</a></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="footer-note">
+        Biblioteca simplificada para duas acoes principais: abrir uma sessao pronta ou duplicar para nova variacao.
+      </p>
+    </section>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Analyzer UI Proposal - Workspace</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-page="workspace">
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html">
+        <span class="brand-badge">MX</span>
+        <span class="brand-title">
+          <strong>Music Analyzer</strong>
+          <span>Studio Workspace</span>
+        </span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="./index.html" data-page-link="discover">Descobrir</a>
+        <a href="./session.html" data-page-link="session">Processamento</a>
+        <a href="./workspace.html" data-page-link="workspace">Workspace</a>
+        <a href="./library.html" data-page-link="library">Biblioteca</a>
+      </nav>
+
+      <div class="topbar-right">
+        <span class="user-chip mono">Sessao pronta: MX-024</span>
+        <a class="btn btn-primary" href="./library.html">Ir para biblioteca</a>
+      </div>
+    </header>
+
+    <div class="page-title-row animate-up">
+      <div>
+        <h1>3. Workspace: ouvir, ajustar e exportar</h1>
+        <p>Aqui estao reunidos player e mixer em linguagem de estacao profissional.</p>
+      </div>
+      <span class="state ready">Pronta</span>
+    </div>
+
+    <section class="card animate-up" style="margin-top:12px; animation-delay:60ms">
+      <div class="timeline">
+        <article class="step done">
+          <div class="name">1. Descobrir</div>
+          <div class="meta">Fonte escolhida</div>
+        </article>
+        <article class="step done">
+          <div class="name">2. Processamento</div>
+          <div class="meta">Stems gerados</div>
+        </article>
+        <article class="step live">
+          <div class="name">3. Workspace</div>
+          <div class="meta">Ajuste fino de mix</div>
+        </article>
+        <article class="step">
+          <div class="name">4. Biblioteca</div>
+          <div class="meta">Salvar e reusar</div>
+        </article>
+      </div>
+    </section>
+
+    <div class="main-grid" style="margin-top:14px">
+      <section class="card animate-up">
+        <section class="card pro-player" style="margin-top:0">
+          <div class="pro-player-head">
+            <div>
+              <h3>Player de referencia</h3>
+              <p class="inline-note" style="margin-top:8px">Escuta de qualidade para definir nivel, panorama e dinamica antes da exportacao.</p>
+            </div>
+            <div class="deck-tags">
+              <span class="preview-chip">Deck A</span>
+              <span class="preview-chip">BPM 176</span>
+              <span class="preview-chip">Tom E</span>
+            </div>
+          </div>
+
+          <div class="transport-row">
+            <button class="transport-btn" type="button" aria-label="ir para o inicio">|&lt;</button>
+            <button class="transport-btn" type="button" aria-label="voltar 5 segundos">&lt;&lt; 5</button>
+            <button class="transport-btn play" type="button" aria-label="play pause">Play</button>
+            <button class="transport-btn" type="button" aria-label="avancar 5 segundos">5 &gt;&gt;</button>
+            <button class="transport-btn" type="button" aria-label="ir para o fim">&gt;|</button>
+          </div>
+
+          <div class="timeline-pro">
+            <span class="timecode mono">01:12.4</span>
+            <input class="scrub" type="range" min="0" max="183" value="72" />
+            <span class="timecode mono">03:03.0</span>
+          </div>
+
+          <div class="player-tool-row">
+            <div class="player-switches">
+              <button class="pill-btn">Cue In</button>
+              <button class="pill-btn">Cue Out</button>
+              <button class="pill-btn">Loop 4</button>
+              <button class="pill-btn">A/B</button>
+            </div>
+            <div class="player-meta-grid">
+              <div><span>Latencia</span><strong>18 ms</strong></div>
+              <div><span>Sample rate</span><strong>48 kHz</strong></div>
+              <div><span>Formato</span><strong>WAV 24-bit</strong></div>
+            </div>
+          </div>
+
+          <div class="meter-bridge" aria-hidden="true">
+            <div class="meter-column">
+              <small>L</small>
+              <div class="meter-rail"><i style="height:74%"></i></div>
+              <span>-4.3</span>
+            </div>
+            <div class="meter-column">
+              <small>R</small>
+              <div class="meter-rail"><i style="height:71%"></i></div>
+              <span>-4.8</span>
+            </div>
+          </div>
+
+          <div class="wave-overview" aria-hidden="true">
+            <span style="height:18%"></span>
+            <span style="height:30%"></span>
+            <span style="height:22%"></span>
+            <span style="height:54%"></span>
+            <span style="height:61%"></span>
+            <span style="height:48%"></span>
+            <span style="height:72%"></span>
+            <span style="height:78%"></span>
+            <span style="height:57%"></span>
+            <span style="height:40%"></span>
+            <span style="height:46%"></span>
+            <span style="height:63%"></span>
+            <span style="height:69%"></span>
+            <span style="height:82%"></span>
+            <span style="height:58%"></span>
+            <span style="height:42%"></span>
+          </div>
+        </section>
+
+        <h3 style="margin-top:14px">Mixer profissional por stem</h3>
+        <div class="strip-grid">
+          <article class="channel-strip">
+            <div class="strip-head"><strong>Vocals</strong><span>-2.1 dB</span></div>
+            <div class="strip-inserts"><span>HPF</span><span>Comp</span><span>DeEss</span></div>
+            <div class="strip-meter-wrap" aria-hidden="true"><div class="strip-meter"><i style="height:82%"></i></div><small>-6</small></div>
+            <div class="strip-control"><label>Pan</label><input type="range" min="-100" max="100" value="6" /></div>
+            <div class="strip-control"><label>Send FX</label><input type="range" min="0" max="100" value="24" /></div>
+            <div class="strip-control">
+              <label>Fader</label>
+              <input data-mix-slider name="vocals" type="range" min="0" max="100" value="84" />
+              <div class="slider-meta"><span>Nivel</span><strong data-mix-value="vocals">84%</strong></div>
+            </div>
+            <div class="channel-controls"><button class="pill-btn">Solo</button><button class="pill-btn">Mute</button></div>
+          </article>
+
+          <article class="channel-strip">
+            <div class="strip-head"><strong>Drums</strong><span>-3.7 dB</span></div>
+            <div class="strip-inserts"><span>EQ</span><span>Comp</span><span>Clip</span></div>
+            <div class="strip-meter-wrap" aria-hidden="true"><div class="strip-meter"><i style="height:77%"></i></div><small>-7</small></div>
+            <div class="strip-control"><label>Pan</label><input type="range" min="-100" max="100" value="-2" /></div>
+            <div class="strip-control"><label>Send FX</label><input type="range" min="0" max="100" value="31" /></div>
+            <div class="strip-control">
+              <label>Fader</label>
+              <input data-mix-slider name="drums" type="range" min="0" max="100" value="72" />
+              <div class="slider-meta"><span>Nivel</span><strong data-mix-value="drums">72%</strong></div>
+            </div>
+            <div class="channel-controls"><button class="pill-btn">Solo</button><button class="pill-btn">Mute</button></div>
+          </article>
+
+          <article class="channel-strip">
+            <div class="strip-head"><strong>Bass</strong><span>-4.4 dB</span></div>
+            <div class="strip-inserts"><span>EQ</span><span>Sat</span><span>Comp</span></div>
+            <div class="strip-meter-wrap" aria-hidden="true"><div class="strip-meter"><i style="height:68%"></i></div><small>-9</small></div>
+            <div class="strip-control"><label>Pan</label><input type="range" min="-100" max="100" value="0" /></div>
+            <div class="strip-control"><label>Send FX</label><input type="range" min="0" max="100" value="12" /></div>
+            <div class="strip-control">
+              <label>Fader</label>
+              <input data-mix-slider name="bass" type="range" min="0" max="100" value="65" />
+              <div class="slider-meta"><span>Nivel</span><strong data-mix-value="bass">65%</strong></div>
+            </div>
+            <div class="channel-controls"><button class="pill-btn">Solo</button><button class="pill-btn">Mute</button></div>
+          </article>
+
+          <article class="channel-strip">
+            <div class="strip-head"><strong>Other</strong><span>-6.0 dB</span></div>
+            <div class="strip-inserts"><span>EQ</span><span>Stereo</span><span>Glue</span></div>
+            <div class="strip-meter-wrap" aria-hidden="true"><div class="strip-meter"><i style="height:59%"></i></div><small>-11</small></div>
+            <div class="strip-control"><label>Pan</label><input type="range" min="-100" max="100" value="3" /></div>
+            <div class="strip-control"><label>Send FX</label><input type="range" min="0" max="100" value="20" /></div>
+            <div class="strip-control">
+              <label>Fader</label>
+              <input data-mix-slider name="other" type="range" min="0" max="100" value="58" />
+              <div class="slider-meta"><span>Nivel</span><strong data-mix-value="other">58%</strong></div>
+            </div>
+            <div class="channel-controls"><button class="pill-btn">Solo</button><button class="pill-btn">Mute</button></div>
+          </article>
+        </div>
+
+        <section class="card master-pro" style="margin-top:12px">
+          <h3>Master bus</h3>
+          <div class="master-grid">
+            <div class="metric"><div class="label">Loudness</div><div class="value">-12.6 LUFS</div></div>
+            <div class="metric"><div class="label">True Peak</div><div class="value">-0.9 dBTP</div></div>
+            <div class="metric"><div class="label">Headroom</div><div class="value">2.1 dB</div></div>
+            <div class="metric"><div class="label">Limiter</div><div class="value">Ativo</div></div>
+          </div>
+          <div class="slider-wrap" style="margin-top:10px">
+            <input data-master-slider type="range" min="0" max="100" value="78" />
+            <div class="slider-meta"><span>Master fader</span><strong data-master-value>78%</strong></div>
+          </div>
+        </section>
+      </section>
+
+      <aside class="stack animate-up" style="animation-delay:90ms">
+        <section class="card action-panel">
+          <h3>Exportacao simplificada</h3>
+          <div class="session-list" style="margin-top:10px">
+            <article class="session-item">
+              <div>
+                <div class="title">Mix para estudo</div>
+                <div class="meta">Master normalizado, WAV</div>
+              </div>
+              <a class="btn btn-subtle" href="#">Selecionar</a>
+            </article>
+            <article class="session-item">
+              <div>
+                <div class="title">Stems individuais</div>
+                <div class="meta">Vocals, drums, bass, other</div>
+              </div>
+              <a class="btn btn-subtle" href="#">Selecionar</a>
+            </article>
+          </div>
+          <div class="input-row" style="margin-top:10px">
+            <a class="btn btn-primary" href="#">Exportar mix</a>
+            <a class="btn btn-accent" href="#">Baixar stems</a>
+          </div>
+          <a class="btn btn-subtle" href="./library.html">Salvar e ir para biblioteca</a>
+        </section>
+
+        <section class="card">
+          <h3>Arquivos prontos</h3>
+          <table class="library-table" aria-label="arquivos de stems">
+            <thead>
+              <tr>
+                <th>Stem</th>
+                <th>Formato</th>
+                <th>Tamanho</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>vocals.wav</td><td>WAV</td><td>34.2 MB</td></tr>
+              <tr><td>drums.wav</td><td>WAV</td><td>34.2 MB</td></tr>
+              <tr><td>bass.wav</td><td>WAV</td><td>34.2 MB</td></tr>
+              <tr><td>other.wav</td><td>WAV</td><td>34.2 MB</td></tr>
+            </tbody>
+          </table>
+          <p class="footer-note">Sessao visual: <span class="mono">MX-024</span>. UUID segue apenas no backend.</p>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

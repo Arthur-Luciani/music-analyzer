@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   backend:
     build:
@@ -13,6 +11,13 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - STORAGE_ROOT=/app/storage
+      - TORCH_HOME=/app/storage/cache/torch
+      - SEPARATION_MODEL=htdemucs
+      - SEPARATION_DEVICE=auto
+      - SEPARATION_SEGMENT=7
+      - SEPARATION_OVERLAP=0.25
+      - SEPARATION_SHIFTS=1
+      - SEPARATION_TARGET_STEMS=vocals,drums,bass,other
     gpus: all
 
   frontend:

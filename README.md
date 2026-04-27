@@ -1,6 +1,6 @@
 # Music Analyzer MVP
 
-Base inicial do projeto com backend FastAPI, frontend React (Vite), Docker Compose e estrutura de storage para pipeline de separacao em stems.
+Base do projeto com backend FastAPI, frontend React (Vite), Docker Compose e estrutura de storage para pipeline de separacao em stems com Demucs.
 
 ## Mapa de dependencias
 
@@ -31,12 +31,61 @@ docker compose build
 docker compose up
 ```
 
+## Variaveis de ambiente do pipeline
+
+Backend (service `backend` no compose):
+
+- `SEPARATION_MODEL` (default: `htdemucs`)
+- `SEPARATION_DEVICE` (`auto`, `cuda`, `cpu`)
+- `SEPARATION_SEGMENT` (default: `7`)
+- `SEPARATION_OVERLAP` (default: `0.25`)
+- `SEPARATION_SHIFTS` (default: `1`)
+- `SEPARATION_TARGET_STEMS` (default: `vocals,drums,bass,other`)
+- `TORCH_HOME` (default no compose: `/app/storage/cache/torch`)
+
+Com `SEPARATION_DEVICE=auto`, o backend tenta `cuda` primeiro e faz fallback para `cpu` quando necessario.
+
 Instalacao local por fase (sem Docker):
 
 ```bash
 pip install -r backend/requirements.txt
 pip install -r backend/requirements.txt -r backend/requirements.pipeline.txt
 cd frontend && npm install
+```
+
+Para separacao local (fora do Docker), tenha FFmpeg instalado e disponivel no PATH do sistema.
+Se necessario, defina `FFMPEG_BINARY` com o caminho completo de `ffmpeg.exe`.
+
+### Rodar local (Windows)
+
+Use o script da raiz para iniciar backend/frontend com variaveis corretas para storage e GPU:
+
+```powershell
+.\run-local-dev.ps1 -Target all -SeparationDevice cuda
+```
+
+Somente backend:
+
+```powershell
+.\run-local-dev.ps1 -Target backend -SeparationDevice cuda
+```
+
+Somente frontend:
+
+```powershell
+.\run-local-dev.ps1 -Target frontend
+```
+
+Verificar status dos servicos:
+
+```powershell
+.\run-local-dev.ps1 -Target check
+```
+
+Se FFmpeg nao estiver instalado:
+
+```powershell
+winget install --id Gyan.FFmpeg --source winget
 ```
 
 Servicos:
@@ -48,7 +97,7 @@ Servicos:
 ## API MVP
 
 - `POST /api/process`
-  - body: `{ "query": "artist + song" }`
+  - body: `{ "query": "artist + song", "target_stems": ["vocals", "drums"] }`
   - resposta: `{ "job_id": "..." }`
 - `GET /api/jobs/{job_id}`
 - `WS /ws/{job_id}`
@@ -58,6 +107,7 @@ Servicos:
 1. Abrir o frontend em http://localhost:5173
 2. Enviar uma busca (ex: `Daft Punk Get Lucky`)
 3. Ver progresso em tempo real: `queued -> downloading -> separating -> ready`
+4. Conferir arquivos reais em `storage/stems/{job_id}/vocals.wav`, `drums.wav`, `bass.wav`, `other.wav`
 
 ## Sobre GPU
 
@@ -69,4 +119,18 @@ Para validar CUDA no seu ambiente, execute dentro do container backend:
 docker compose exec backend python -c "import torch; print(torch.cuda.is_available())"
 ```
 
-No estado atual, o pipeline de processamento esta mockado (simulado) para validar arquitetura REST + WebSocket. As integracoes reais com yt-dlp, Demucs e Spotipy entram na proxima etapa.
+Em execucao real, o pipeline usa Demucs para gerar os 4 stems. Em maquinas sem GPU, use `SEPARATION_DEVICE=cpu`.
+
+Validacao rapida de CUDA local (fora do Docker):
+
+```powershell
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.device_count())"
+```
+
+### Troubleshooting CUDA
+
+Se ocorrer erro de memoria na GPU:
+
+1. Force CPU temporariamente com `SEPARATION_DEVICE=cpu`.
+2. Reduza carga com `SEPARATION_SHIFTS=1` (ou mantenha nesse valor).
+3. Ajuste `SEPARATION_SEGMENT` para um valor menor se necessario.

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Analyzer UI Proposal - Descobrir</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-page="discover">
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html">
+        <span class="brand-badge">MX</span>
+        <span class="brand-title">
+          <strong>Music Analyzer</strong>
+          <span>Studio Workspace</span>
+        </span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="./index.html" data-page-link="discover">Descobrir</a>
+        <a href="./session.html" data-page-link="session">Processamento</a>
+        <a href="./workspace.html" data-page-link="workspace">Workspace</a>
+        <a href="./library.html" data-page-link="library">Biblioteca</a>
+      </nav>
+
+      <div class="topbar-right">
+        <span class="user-chip mono">Nova jornada simplificada</span>
+        <a class="btn btn-primary" href="./session.html">Continuar</a>
+      </div>
+    </header>
+
+    <div class="page-title-row animate-up">
+      <div>
+        <h1>1. Escolha a faixa certa</h1>
+        <p>Primeiro passo: buscar e confirmar uma unica fonte para evitar retrabalho no processamento.</p>
+      </div>
+      <span class="state processing">Inicio</span>
+    </div>
+
+    <section class="card animate-up" style="margin-top:12px; animation-delay:70ms">
+      <div class="timeline">
+        <article class="step live">
+          <div class="name">1. Descobrir</div>
+          <div class="meta">Escolha da fonte</div>
+        </article>
+        <article class="step">
+          <div class="name">2. Processamento</div>
+          <div class="meta">Separacao automatica</div>
+        </article>
+        <article class="step">
+          <div class="name">3. Workspace</div>
+          <div class="meta">Mix e preview</div>
+        </article>
+        <article class="step">
+          <div class="name">4. Biblioteca</div>
+          <div class="meta">Reuso e historico</div>
+        </article>
+      </div>
+    </section>
+
+    <div class="main-grid" style="margin-top:12px">
+      <section class="card hero-card animate-up" style="animation-delay:90ms">
+        <span class="kicker">Passo unico</span>
+        <h2 style="margin-top:10px">Buscar e validar a melhor fonte</h2>
+        <p class="hero-copy" style="margin-top:8px">
+          A tela agora tem um unico objetivo: voce escolhe uma fonte e segue para processamento. Sem telemetria aqui.
+        </p>
+
+        <div class="field-grid">
+          <label>Buscar faixa ou colar URL</label>
+          <div class="input-row">
+            <input type="text" value="basket case green day" aria-label="buscar faixa" />
+            <button class="btn btn-subtle" type="button">Buscar fontes</button>
+          </div>
+        </div>
+
+        <div class="source-list">
+          <article class="source-item selected">
+            <div class="source-rank">1</div>
+            <div class="source-main">
+              <div class="source-title">Green Day - Basket Case (Official Music Video)</div>
+              <div class="source-meta">YouTube | 3:03 | recomendado</div>
+            </div>
+            <div class="confidence">
+              <span>Compatibilidade 95%</span>
+              <div class="confidence-bar"><i style="width:95%"></i></div>
+            </div>
+          </article>
+
+          <article class="source-item">
+            <div class="source-rank">2</div>
+            <div class="source-main">
+              <div class="source-title">Basket Case - Live in Chicago</div>
+              <div class="source-meta">YouTube | 4:07 | ao vivo</div>
+            </div>
+            <div class="confidence">
+              <span>Compatibilidade 74%</span>
+              <div class="confidence-bar"><i style="width:74%"></i></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <aside class="stack">
+        <section class="card action-panel animate-up" style="animation-delay:120ms">
+          <h3>Decisao atual</h3>
+          <div class="kv-list">
+            <div class="kv"><span>Faixa</span><strong>Basket Case</strong></div>
+            <div class="kv"><span>Fonte</span><strong>YouTube oficial</strong></div>
+            <div class="kv"><span>Duracao</span><strong>3m 03s</strong></div>
+            <div class="kv"><span>Sessao</span><strong class="mono">MX-024</strong></div>
+          </div>
+          <a class="btn btn-accent" href="./session.html">Iniciar processamento</a>
+          <p class="inline-note">Proximo passo: acompanhar separacao em tempo real.</p>
+        </section>
+
+        <section class="card animate-up" style="animation-delay:170ms">
+          <h3>Regras simples da jornada</h3>
+          <ul class="flow-checklist">
+            <li>Escolher apenas uma fonte por sessao.</li>
+            <li>Ajustes de audio ficam apenas no workspace.</li>
+            <li>Biblioteca serve para retomar e duplicar sessoes.</li>
+          </ul>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

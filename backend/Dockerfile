@@ -1,13 +1,23 @@
+# syntax=docker/dockerfile:1.7
+
 FROM python:3.10-slim
 
 WORKDIR /app
 
-RUN apt-get update \
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_INPUT=1
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+COPY requirements.pipeline.txt /app/requirements.pipeline.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r /app/requirements.txt -r /app/requirements.pipeline.txt
 
 COPY app /app/app
 

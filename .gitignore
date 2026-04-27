@@ -16,6 +16,9 @@ build/
 storage/raw/*
 storage/stems/*
 storage/cache/*
+storage/exports/*
+storage/sessions.db
+backend/storage/sessions.db
 !storage/raw/.gitkeep
 !storage/stems/.gitkeep
 !storage/cache/.gitkeep
