@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Analyzer | Groove Learning Mode</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #121416;
+            --bg-surface: #1a1d21;
+            --bg-soft: #242931;
+            --text-strong: #eceff3;
+            --text-body: #c2c8d0;
+            --text-muted: #9199a3;
+            --line: #323840;
+            --line-strong: #4c5560;
+            --brand: #46505c;
+            --brand-2: #5a6573;
+            --accent: #c18a3a;
+            --accent-soft: #3b2f20;
+            --good: #5ba17a;
+            --warn: #bc9050;
+            --bad: #ba6b78;
+            --radius-xl: 10px;
+            --radius-lg: 8px;
+            --radius-md: 6px;
+            --shadow-soft: 0 10px 24px rgba(2, 6, 10, 0.38);
+            --shadow-strong: 0 16px 32px rgba(2, 6, 10, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Sora", sans-serif;
+            background: 
+                radial-gradient(960px 540px at 115% -10%, rgba(96, 106, 120, 0.14), transparent 58%),
+                radial-gradient(760px 460px at -20% 100%, rgba(193, 138, 58, 0.14), transparent 56%),
+                linear-gradient(160deg, #0f1215 0%, #161a20 45%, #121416 100%);
+            color: var(--text-strong);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .topbar {
+            background: rgba(26, 29, 33, 0.92);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-soft);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 24px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-badge {
+            width: 34px;
+            height: 34px;
+            border-radius: var(--radius-md);
+            background: linear-gradient(150deg, var(--brand), var(--brand-2));
+            display: grid;
+            place-items: center;
+            color: #ffffff;
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .brand-title h1 {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 700;
+        }
+
+        .brand-title p {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            border: 1px solid var(--line);
+            border-radius: var(--radius-lg);
+            background: rgba(28, 32, 38, 0.92);
+            box-shadow: var(--shadow-soft);
+            padding: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 24px;
+        }
+
+        .card-title h2 {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .card-title p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .kicker {
+            display: inline-flex;
+            border: 1px solid #59626d;
+            color: var(--warn);
+            border-radius: var(--radius-md);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 5px 9px;
+            background: #2a2f36;
+            margin-bottom: 12px;
+        }
+
+        /* Groove Matrix */
+        .groove-matrix {
+            background: #161a1f;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .matrix-row {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .matrix-label {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .cells {
+            display: grid;
+            grid-template-columns: repeat(16, 1fr);
+            gap: 4px;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: #232931;
+            border: 1px solid #323840;
+            border-radius: 3px;
+            transition: all 0.15s;
+            cursor: pointer;
+        }
+
+        .cell:nth-child(4n) {
+            margin-right: 6px;
+        }
+
+        .cell.active-k { background: var(--bad); box-shadow: 0 0 10px rgba(186, 107, 120, 0.4); border-color: transparent; }
+        .cell.active-s { background: var(--good); box-shadow: 0 0 10px rgba(91, 161, 122, 0.4); border-color: transparent; }
+        .cell.active-h { background: var(--accent); box-shadow: 0 0 10px rgba(193, 138, 58, 0.4); border-color: transparent; }
+
+        .cell:hover {
+            border-color: var(--text-muted);
+            transform: scale(1.1);
+        }
+
+        /* Path Sidebar */
+        .path-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .path-item {
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            background: #1f2329;
+            padding: 12px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .path-item:hover {
+            background: #252a31;
+            border-color: var(--line-strong);
+        }
+
+        .path-item.active {
+            border-color: var(--accent);
+            background: rgba(193, 138, 58, 0.08);
+        }
+
+        .path-item-main h4 {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .path-item-main p {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .status-chip {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 3px 6px;
+            border-radius: 4px;
+            background: #323841;
+            color: var(--text-muted);
+        }
+
+        .path-item.active .status-chip {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        /* Control Footer */
+        .footer-controls {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26, 29, 33, 0.95);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-xl);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            backdrop-filter: blur(12px);
+            box-shadow: var(--shadow-strong);
+            z-index: 1000;
+        }
+
+        .btn-transport {
+            background: #252a31;
+            border: 1px solid var(--line);
+            color: var(--text-strong);
+            min-width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: 700;
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .btn-transport.play {
+            background: var(--accent);
+            border: none;
+            min-width: 120px;
+            color: #fff;
+        }
+
+        .time-display {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 20px;
+            color: var(--accent);
+            text-align: center;
+        }
+
+        .pill-btn {
+            background: #252a31;
+            border: 1px solid var(--line);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 700;
+            transition: all 0.15s ease;
+            text-transform: uppercase;
+        }
+
+        .pill-btn.active {
+            color: var(--accent);
+            border-color: var(--accent);
+            background: rgba(193, 138, 58, 0.1);
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .metric {
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            background: #1a1e24;
+            padding: 12px;
+        }
+
+        .metric .label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 700;
+        }
+
+        .metric .value {
+            margin-top: 4px;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-strong);
+        }
+
+        /* Animations */
+        .metronome-dot {
+            width: 8px;
+            height: 8px;
+            background: #323841;
+            border-radius: 50%;
+            transition: all 0.1s ease;
+        }
+
+        .metronome-dot.active {
+            background: var(--accent);
+            transform: scale(1.4);
+            box-shadow: 0 0 10px var(--accent);
+        }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-badge">MA</div>
+            <div class="brand-title">
+                <h1>Hysteria - Muse</h1>
+                <span>MODO DE ESTUDO: GROOVE ANALYZER</span>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <button class="pill-btn">CONFIGURAÇÕES</button>
+            <button class="pill-btn active">INSPETOR</button>
+        </div>
+    </header>
+
+    <main class="main-grid">
+        <div class="content-col">
+            <div class="card">
+                <span class="kicker">Análise Técnica</span>
+                <div class="card-header">
+                    <div class="card-title">
+                        <h2>Assinatura de Groove</h2>
+                        <p>Padrão rítmico principal extraído de 182 compassos.</p>
+                    </div>
+                </div>
+
+                <div class="groove-matrix">
+                    <div class="matrix-row">
+                        <div class="matrix-label">KICK</div>
+                        <div class="cells">
+                            <div class="cell active-k"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell active-k"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell active-k"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell active-k"></div>
+                            <div class="cell"></div>
+                            <div class="cell active-k"></div>
+                        </div>
+                    </div>
+                    <div class="matrix-row">
+                        <div class="matrix-label">SNARE</div>
+                        <div class="cells">
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell active-s"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                        </div>
+                    </div>
+                    <div class="matrix-row">
+                        <div class="matrix-label">HIHAT</div>
+                        <div class="cells">
+                            <div class="cell active-h"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell active-h"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell active-h"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell active-h"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell"></div>
+                            <div class="cell active-h"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-grid">
+                    <div class="metric">
+                        <div class="label">BPM Estimado</div>
+                        <div class="value">123.0</div>
+                    </div>
+                    <div class="metric">
+                        <div class="label">Sincopação</div>
+                        <div class="value">68%</div>
+                    </div>
+                    <div class="metric">
+                        <div class="label">Densidade</div>
+                        <div class="value">Alta</div>
+                    </div>
+                    <div class="metric">
+                        <div class="label">Feel</div>
+                        <div class="value">Straight</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <aside class="sidebar-col">
+            <div class="card">
+                <span class="kicker" style="color: var(--good)">Pedagogia</span>
+                <h3 style="font-size: 14px; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em;">Trilha de Aprendizado</h3>
+                
+                <div class="path-list">
+                    <div class="path-item">
+                        <div class="path-item-main">
+                            <h4>Nível 1: Fundação</h4>
+                            <p>Bumbo e Caixa básicos nos tempos fortes.</p>
+                        </div>
+                        <div class="status-chip" style="background: var(--good); color: #fff;">100%</div>
+                    </div>
+                    <div class="path-item active">
+                        <div class="path-item-main">
+                            <h4>Nível 2: O Esqueleto</h4>
+                            <p>Padrão real de bumbo/caixa sem pratos.</p>
+                        </div>
+                        <div class="status-chip">FOCO</div>
+                    </div>
+                    <div class="path-item">
+                        <div class="path-item-main">
+                            <h4>Nível 3: Pulso</h4>
+                            <p>Adiciona chimbal em colcheias constantes.</p>
+                        </div>
+                        <div class="status-chip">BLOQUEADO</div>
+                    </div>
+                    <div class="path-item">
+                        <div class="path-item-main">
+                            <h4>Nível 4: Groove Real</h4>
+                            <p>O padrão original transcrito pela IA.</p>
+                        </div>
+                        <div class="status-chip">BLOQUEADO</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Metrônomo</span>
+                        <span style="font-family: 'IBM Plex Mono'; font-size: 12px; color: var(--accent);">123 BPM</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <div class="metronome-dot active"></div>
+                        <div class="metronome-dot"></div>
+                        <div class="metronome-dot"></div>
+                        <div class="metronome-dot"></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <footer class="footer-controls">
+        <div class="dashboard-group">
+            <span style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-right: 8px;">Velocidade:</span>
+            <button class="pill-btn">50%</button>
+            <button class="pill-btn">75%</button>
+            <button class="pill-btn active">100%</button>
+        </div>
+
+        <div class="dashboard-divider" style="width: 1px; height: 30px; background: var(--line); margin: 0 8px;"></div>
+
+        <button class="btn-transport play">REPRODUZIR</button>
+
+        <div class="dashboard-divider" style="width: 1px; height: 30px; background: var(--line); margin: 0 8px;"></div>
+
+        <div class="dashboard-group">
+            <button class="pill-btn active">LOOP EXERCÍCIO</button>
+            <button class="pill-btn">TRACK CHEIA</button>
+        </div>
+    </footer>
+
+    <script>
+        // Metrônomo visual sincronizado (123 BPM)
+        let step = 0;
+        const dots = document.querySelectorAll('.metronome-dot');
+        setInterval(() => {
+            dots.forEach(d => d.classList.remove('active'));
+            dots[step].classList.add('active');
+            step = (step + 1) % 4;
+        }, 487);
+    </script>
+</body>
+</html>
+ </script>
+</body>
+</html>

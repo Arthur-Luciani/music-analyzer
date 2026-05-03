@@ -16,6 +16,7 @@ export function useWebAudioMixer({
   isPlaying,
 }) {
   const [meters, setMeters] = useState({ masterL: 0, masterR: 0, stems: {} });
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const ctxRef = useRef(null);
   const nodesRef = useRef({}); // por stemName: { source, gain, pan, analyser }
@@ -50,16 +51,24 @@ export function useWebAudioMixer({
       analyserL: analyzerL,
       analyserR: analyzerR,
     };
+
+    setIsInitialized(true);
   }, []);
 
   // Connect stems
   useEffect(() => {
     if (!ctxRef.current) return;
 
+    // Garante que o contexto está ativo (essencial para Chrome/Edge)
+    if (isPlaying && ctxRef.current.state === "suspended") {
+      ctxRef.current.resume();
+    }
+
     stemNames.forEach((stemName) => {
       const audioNode = audioElementsRef.current[stemName];
       if (!audioNode) return;
 
+      // Se o nó já existe mas o source não está conectado ao contexto atual, limpamos para reconectar
       if (!nodesRef.current[stemName]) {
         try {
           const source = ctxRef.current.createMediaElementSource(audioNode);
@@ -72,17 +81,18 @@ export function useWebAudioMixer({
 
           source.connect(pan);
           pan.connect(gain);
-          gain.connect(analyser); // pra pegar nivel com o pan/gain aplicado (ou gain.connect master e source ao analyser)
+          gain.connect(analyser);
           analyser.connect(masterNodesRef.current.gain);
 
           nodesRef.current[stemName] = { source, pan, gain, analyser };
+          console.log(`Conectado stem: ${stemName}`);
         } catch (e) {
-          // Ja conectou no contexto (strict mode bypass)
-          console.error("Erro ao conectar MediaElement", e);
+          // Erro comum se já estiver conectado, mas o log ajuda no debug
+          console.warn(`Aviso ao conectar stem ${stemName}:`, e.message);
         }
       }
     });
-  }, [stemNames, audioElementsRef, isPlaying, initAudioContext]);
+  }, [stemNames, audioElementsRef, isPlaying, isInitialized]);
 
   // Aplicar Mute, Solo, Volume, Pan
   useEffect(() => {
@@ -115,7 +125,7 @@ export function useWebAudioMixer({
       const panVal = (panLevels[stemName] ?? 0) / 100;
       bag.pan.pan.setTargetAtTime(panVal, ctxRef.current.currentTime, 0.05);
     });
-  }, [stemNames, mixLevels, panLevels, mutedStems, soloStem]);
+  }, [stemNames, mixLevels, panLevels, mutedStems, soloStem, isInitialized]);
 
   // Request Animation Frame loop para levels
   useEffect(() => {

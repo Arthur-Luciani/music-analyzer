@@ -25,3 +25,5 @@ backend/storage/sessions.db
 
 # Environment
 .env
+
+backend/app/ml/data/drum_dataset/*

@@ -1,0 +1,239 @@
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import WaveSurfer from "wavesurfer.js";
+import DrumInspectorPage from "../pages/DrumInspectorPage";
+import { getStemAudioUrl } from "../api";
+import { useWebAudioMixer } from "../hooks/useWebAudioMixer";
+
+export default function DrumInspectorContainer({ session, workspace, onBack }) {
+  const { 
+    drumAnalysis, 
+    saveDrumCorrectionsAction, 
+    mixLevels, 
+    soloStem, 
+    mutedStems, 
+    panLevels 
+  } = workspace;
+  
+  const [wavesurfer, setWavesurfer] = useState(null);
+  const [isReady, setIsReady] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+  const [editedHits, setEditedHits] = useState([]);
+  const [selectedHitIndex, setSelectedHitIndex] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(20);
+
+  const containerRef = useRef(null);
+  const scrollRef = useRef(null);
+  const currentTimeRef = useRef(0);
+  const audioElementsRef = useRef({});
+
+  // Mixer Setup
+  const stemNames = useMemo(() => {
+    return Object.keys(mixLevels || {}).filter(name => name !== 'master');
+  }, [mixLevels]);
+
+  const { initAudioContext } = useWebAudioMixer({
+    stemNames,
+    audioElementsRef,
+    mixLevels: mixLevels || {},
+    panLevels: panLevels || {},
+    mutedStems: mutedStems || {},
+    soloStem: soloStem || null,
+    isPlaying,
+  });
+
+  // Sync ref with state
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
+
+  // Initialize hits from analysis
+  useEffect(() => {
+    if (drumAnalysis?.hits) {
+      setEditedHits([...drumAnalysis.hits]);
+    }
+  }, [drumAnalysis]);
+
+  // Initialize Wavesurfer (VISUAL ONLY)
+  useEffect(() => {
+    if (!containerRef.current || !session?.job_id) return;
+
+    const ws = WaveSurfer.create({
+      container: containerRef.current,
+      waveColor: "#434b56",
+      progressColor: "#c18a3a",
+      cursorColor: "transparent",
+      barWidth: 2,
+      barGap: 1,
+      height: 150,
+      normalize: true,
+      hideScrollbar: true,
+      responsive: true,
+      fillParent: true,
+      interact: false,
+    });
+
+    const audioUrl = getStemAudioUrl(session.job_id, "drums");
+    ws.load(audioUrl);
+    ws.setMuted(true);
+
+    ws.on("ready", () => {
+      setIsReady(true);
+      setWavesurfer(ws);
+    });
+
+    return () => ws.destroy();
+  }, [session?.job_id]);
+
+  // Sync Timer Loop (High Performance)
+  useEffect(() => {
+    let rafId;
+    const sync = () => {
+      const activeAudio = audioElementsRef.current["drums"];
+      if (activeAudio && isPlaying) {
+        const time = activeAudio.currentTime;
+        setCurrentTime(time);
+        if (wavesurfer) wavesurfer.setTime(time);
+        rafId = requestAnimationFrame(sync);
+      }
+    };
+    if (isPlaying) rafId = requestAnimationFrame(sync);
+    return () => cancelAnimationFrame(rafId);
+  }, [isPlaying, wavesurfer]);
+
+  // Handle Playback Speed and Zoom
+  useEffect(() => {
+    if (wavesurfer) {
+      wavesurfer.setPlaybackRate(playbackSpeed);
+    }
+  }, [wavesurfer, playbackSpeed]);
+
+  useEffect(() => {
+    if (wavesurfer) {
+      wavesurfer.zoom(zoomLevel);
+    }
+  }, [wavesurfer, zoomLevel]);
+
+  // Auto-scroll logic: keep cursor in view
+  useEffect(() => {
+    if (!scrollRef.current || !isReady) return;
+
+    const container = scrollRef.current;
+    const cursorPosition = currentTime * zoomLevel + 80;
+    const scrollLeft = container.scrollLeft;
+    const width = container.clientWidth;
+
+    const margin = width * 0.2;
+    if (cursorPosition > scrollLeft + width - margin) {
+      container.scrollLeft = cursorPosition - width + margin;
+    } else if (cursorPosition < scrollLeft + margin) {
+      container.scrollLeft = Math.max(0, cursorPosition - margin);
+    }
+  }, [currentTime, zoomLevel, isReady]);
+
+  // Auto-select nearest hit when seeking/playing
+  useEffect(() => {
+    if (!isReady || editedHits.length === 0) return;
+
+    const nearestIndex = editedHits.findIndex(h => Math.abs(h.time - currentTime) < 0.15);
+    if (nearestIndex !== -1 && nearestIndex !== selectedHitIndex) {
+      setSelectedHitIndex(nearestIndex);
+    }
+  }, [currentTime, isReady, editedHits, selectedHitIndex]);
+
+  const togglePlay = async () => {
+    if (!isPlaying) {
+      const ctx = initAudioContext();
+      if (ctx && ctx.state === 'suspended') await ctx.resume();
+      
+      const playables = stemNames.map((n) => audioElementsRef.current[n]).filter(Boolean);
+      try {
+        await Promise.all(playables.map((a) => a.play()));
+        setIsPlaying(true);
+      } catch (e) {
+        console.error("Erro ao reproduzir no Inspetor:", e);
+      }
+    } else {
+      stemNames.forEach((n) => audioElementsRef.current[n]?.pause());
+      setIsPlaying(false);
+    }
+  };
+
+  const handleSeek = (time) => {
+    stemNames.forEach((name) => {
+      const el = audioElementsRef.current[name];
+      if (el) el.currentTime = time;
+    });
+    setCurrentTime(time);
+    if (wavesurfer) wavesurfer.setTime(time);
+  };
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.code === "ArrowRight") {
+        e.preventDefault();
+        const nextTime = currentTimeRef.current + (e.shiftKey ? 0.5 : 0.05);
+        handleSeek(nextTime);
+      } else if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        const nextTime = currentTimeRef.current - (e.shiftKey ? 0.5 : 0.05);
+        handleSeek(nextTime);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPlaying, wavesurfer]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveDrumCorrectionsAction(session.session_id, editedHits);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div style={{ display: "none" }}>
+        {stemNames.map((name) => (
+          <audio
+            key={name}
+            ref={(el) => (audioElementsRef.current[name] = el)}
+            src={getStemAudioUrl(session.job_id, name)}
+            crossOrigin="anonymous"
+          />
+        ))}
+      </div>
+
+      <DrumInspectorPage
+        session={session}
+        analysis={drumAnalysis}
+        editedHits={editedHits}
+        containerRef={containerRef}
+        isReady={isReady}
+        isPlaying={isPlaying}
+        currentTime={currentTime}
+        playbackSpeed={playbackSpeed}
+        setPlaybackSpeed={setPlaybackSpeed}
+        selectedHitIndex={selectedHitIndex}
+        setSelectedHitIndex={setSelectedHitIndex}
+        onTogglePlay={togglePlay}
+        onSeek={handleSeek}
+        onSave={handleSave}
+        saving={saving}
+        onBack={onBack}
+        zoomLevel={zoomLevel}
+        onZoom={setZoomLevel}
+        scrollRef={scrollRef}
+      />
+    </>
+  );
+}

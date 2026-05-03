@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 DEFAULT_STEMS = ("vocals", "drums", "bass", "other")
 
@@ -11,6 +12,7 @@ class Settings:
     stems_root: Path
     exports_root: Path
     sessions_db_path: Path
+    yt_dlp_cookie_file: Optional[Path]
     separation_model: str
     separation_device: str
     separation_segment: float
@@ -38,6 +40,13 @@ def _read_int_env(name: str, default: int) -> int:
         return int(raw)
     except ValueError:
         return default
+
+
+def _read_path_env(name: str) -> Optional[Path]:
+    raw = (os.getenv(name) or "").strip()
+    if not raw:
+        return None
+    return Path(raw)
 
 
 def _read_device_env() -> str:
@@ -70,16 +79,29 @@ def _read_target_stems_env() -> tuple[str, ...]:
 
 
 def load_settings() -> Settings:
-    storage_root = Path(os.getenv("STORAGE_ROOT", "storage"))
+    # Resolve project root (root of the git repo)
+    # settings.py is in backend/app/settings.py, so we go up 3 levels
+    project_root = Path(__file__).resolve().parent.parent.parent
+    
+    raw_storage_root = os.getenv("STORAGE_ROOT", "storage")
+    storage_root = Path(raw_storage_root)
+    
+    # If storage_root is relative, resolve it against the project root
+    # instead of the current working directory.
+    if not storage_root.is_absolute():
+        storage_root = (project_root / storage_root).resolve()
+
     torch_home_default = storage_root / "cache" / "torch"
     sessions_db_default = storage_root / "sessions.db"
     exports_root_default = storage_root / "exports"
+
 
     return Settings(
         storage_root=storage_root,
         stems_root=storage_root / "stems",
         exports_root=Path(os.getenv("EXPORTS_ROOT", str(exports_root_default))),
         sessions_db_path=Path(os.getenv("SESSIONS_DB_PATH", str(sessions_db_default))),
+        yt_dlp_cookie_file=_read_path_env("YTDLP_COOKIE_FILE"),
         separation_model=(os.getenv("SEPARATION_MODEL", "htdemucs") or "htdemucs").strip(),
         separation_device=_read_device_env(),
         separation_segment=_read_float_env("SEPARATION_SEGMENT", 7.0),

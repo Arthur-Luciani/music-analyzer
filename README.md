@@ -42,6 +42,7 @@ Backend (service `backend` no compose):
 - `SEPARATION_SHIFTS` (default: `1`)
 - `SEPARATION_TARGET_STEMS` (default: `vocals,drums,bass,other`)
 - `TORCH_HOME` (default no compose: `/app/storage/cache/torch`)
+- `YTDLP_COOKIE_FILE` (caminho para um arquivo de cookies exportado do navegador, para downloads que exigem login)
 
 Com `SEPARATION_DEVICE=auto`, o backend tenta `cuda` primeiro e faz fallback para `cpu` quando necessario.
 
@@ -87,6 +88,8 @@ Se FFmpeg nao estiver instalado:
 ```powershell
 winget install --id Gyan.FFmpeg --source winget
 ```
+
+Se o `yt-dlp` pedir confirmacao de login em videos do YouTube, exporte os cookies do navegador e defina `YTDLP_COOKIE_FILE` apontando para esse arquivo antes de iniciar o backend.
 
 Servicos:
 

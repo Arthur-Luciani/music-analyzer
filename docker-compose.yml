@@ -12,6 +12,7 @@ services:
       - PYTHONUNBUFFERED=1
       - STORAGE_ROOT=/app/storage
       - TORCH_HOME=/app/storage/cache/torch
+      - YTDLP_COOKIE_FILE
       - SEPARATION_MODEL=htdemucs
       - SEPARATION_DEVICE=auto
       - SEPARATION_SEGMENT=7

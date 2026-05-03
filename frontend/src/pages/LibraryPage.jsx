@@ -38,45 +38,25 @@ export default function LibraryPage({
   onTrackSession,
   onDuplicate,
   onReprocess,
+  onDelete,
   isProcessingStatus,
 }) {
   return (
     <>
       <div className="page-title-row animate-up">
         <div>
-          <h1>4. Biblioteca: retomar e reutilizar</h1>
-          <p>Ultimo passo da jornada: encontrar uma sessao pronta e continuar do ponto certo.</p>
+          <h1>Biblioteca</h1>
         </div>
         <span className="state ready">Organizada</span>
       </div>
 
-      <section className="card animate-up" style={{ marginTop: 12, animationDelay: "50ms" }}>
-        <div className="timeline">
-          <article className="step done">
-            <div className="name">1. Descobrir</div>
-            <div className="meta">Fonte definida</div>
-          </article>
-          <article className="step done">
-            <div className="name">2. Processamento</div>
-            <div className="meta">Separacao concluida</div>
-          </article>
-          <article className="step done">
-            <div className="name">3. Workspace</div>
-            <div className="meta">Mixagem realizada</div>
-          </article>
-          <article className="step live">
-            <div className="name">4. Biblioteca</div>
-            <div className="meta">Retomada e reuso</div>
-          </article>
-        </div>
-      </section>
 
       <section className="card animate-up" style={{ marginTop: 12, animationDelay: "60ms" }}>
         <div className="search-filter">
           <input
             type="text"
             value={filters.query}
-            placeholder="Buscar por sessao, faixa ou artista"
+            placeholder="Buscar por sessão, faixa ou artista"
             aria-label="buscar na biblioteca"
             onChange={(event) => onFilterChange("query", event.target.value)}
           />
@@ -92,18 +72,24 @@ export default function LibraryPage({
             <option value="ready">Pronta</option>
             <option value="failed">Falhou</option>
           </select>
-          <input
-            type="date"
-            aria-label="criado de"
-            value={filters.created_from}
-            onChange={(event) => onFilterChange("created_from", event.target.value)}
-          />
-          <input
-            type="date"
-            aria-label="criado ate"
-            value={filters.created_to}
-            onChange={(event) => onFilterChange("created_to", event.target.value)}
-          />
+          <div className="filter-group">
+            <span className="filter-label">De:</span>
+            <input
+              type="date"
+              aria-label="criado de"
+              value={filters.created_from}
+              onChange={(event) => onFilterChange("created_from", event.target.value)}
+            />
+          </div>
+          <div className="filter-group">
+            <span className="filter-label">Até:</span>
+            <input
+              type="date"
+              aria-label="criado ate"
+              value={filters.created_to}
+              onChange={(event) => onFilterChange("created_to", event.target.value)}
+            />
+          </div>
           <button className="btn btn-subtle" type="button" onClick={onApplyFilters} disabled={loading}>
             Aplicar filtros
           </button>
@@ -128,11 +114,11 @@ export default function LibraryPage({
           </div>
         )}
 
-        {loading && <p className="inline-note">Carregando sessoes...</p>}
+        {loading && <p className="inline-note">Carregando sessões...</p>}
 
         {!loading && sessions.length === 0 && (
           <section className="card empty-state" style={{ marginTop: 12 }}>
-            <h3>Nenhuma sessao encontrada</h3>
+            <h3>Nenhuma sessão encontrada</h3>
             <p>Ajuste os filtros ou tente novamente para recarregar a biblioteca.</p>
             <button className="btn btn-subtle" type="button" onClick={onRetry}>
               Recarregar biblioteca
@@ -145,7 +131,7 @@ export default function LibraryPage({
             <table className="library-table" aria-label="historico de sessoes" style={{ marginTop: 12 }}>
               <thead>
                 <tr>
-                  <th>Sessao</th>
+                  <th>Sessão</th>
                   <th>Faixa</th>
                   <th>Criada em</th>
                   <th>Status</th>
@@ -159,7 +145,7 @@ export default function LibraryPage({
                   return (
                     <tr key={session.session_id}>
                       <td>{session.session_code}</td>
-                      <td>{session.track_title || "Faixa nao informada"}</td>
+                      <td>{session.track_title || "Faixa não informada"}</td>
                       <td>{formatSessionDate(session.created_at)}</td>
                       <td>
                         <span className={`state ${stateClass}`}>{getStateBadgeLabel(session.status)}</span>
@@ -205,6 +191,15 @@ export default function LibraryPage({
                           >
                             Reprocessar
                           </button>
+
+                          <button
+                            className="btn btn-danger"
+                            type="button"
+                            onClick={() => onDelete(session.session_id, session.session_code)}
+                            disabled={rowIsBusy || loading}
+                          >
+                            Excluir
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -215,7 +210,7 @@ export default function LibraryPage({
 
             <div className="library-pagination">
               <p className="inline-note" style={{ marginTop: 0 }}>
-                Pagina {page} de {totalPages} | {total} sessoes
+                Página {page} de {totalPages} | {total} sessões
               </p>
               <div className="table-actions">
                 <button className="btn btn-subtle" type="button" onClick={onPrevPage} disabled={page <= 1 || loading}>
@@ -227,7 +222,7 @@ export default function LibraryPage({
                   onClick={onNextPage}
                   disabled={page >= totalPages || loading}
                 >
-                  Proxima
+                  Próxima
                 </button>
               </div>
             </div>

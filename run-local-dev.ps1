@@ -163,7 +163,11 @@ switch ($Target) {
         $ffmpegBin = Resolve-FfmpegBin
         $ffmpegBinaryPath = Resolve-FfmpegBinaryPath
         Show-LocalRuntimeHints
-        $backendCommand = "Push-Location '$projectRoot\\backend'; if ($InstallDeps) { pip install -r requirements.txt -r requirements.pipeline.txt }; `$env:STORAGE_ROOT='$backendStorageRoot'; `$env:TORCH_HOME='$backendTorchHome'; `$env:SEPARATION_DEVICE='$SeparationDevice';"
+        $backendCommand = "Push-Location '$projectRoot\backend'; "
+        if ($InstallDeps) {
+            $backendCommand += "pip install -r requirements.txt -r requirements.pipeline.txt; "
+        }
+        $backendCommand += "`$env:STORAGE_ROOT='$backendStorageRoot'; `$env:TORCH_HOME='$backendTorchHome'; `$env:SEPARATION_DEVICE='$SeparationDevice';"
         if ($ffmpegBinaryPath) {
             $backendCommand += " `$env:FFMPEG_BINARY='$ffmpegBinaryPath';"
         }
@@ -172,7 +176,14 @@ switch ($Target) {
         }
         $backendCommand += " python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
         Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCommand
-        Start-Process powershell -ArgumentList "-NoExit", "-Command", "Push-Location '$projectRoot\\frontend'; if ($InstallDeps) { npm install }; `$env:VITE_BACKEND_ORIGIN='http://localhost:8000'; npm run dev"
+        
+        $frontendCommand = "Push-Location '$projectRoot\frontend'; "
+        if ($InstallDeps) {
+            $frontendCommand += "npm install; "
+        }
+        $frontendCommand += "`$env:VITE_BACKEND_ORIGIN='http://localhost:8000'; npm run dev"
+        Start-Process powershell -ArgumentList "-NoExit", "-Command", $frontendCommand
+        
         Check-Services
     }
 }

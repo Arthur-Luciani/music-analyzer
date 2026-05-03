@@ -1,4 +1,11 @@
 fastapi==0.115.5
 uvicorn[standard]==0.32.0
 pydantic==2.10.2
-yt-dlp>=2024.8.6
+sqlalchemy>=2.0.41,<2.1
+alembic==1.13.0
+yt-dlp>=2026.1.29
+librosa>=0.10.1
+soundfile>=0.12.1
+tqdm>=4.66.0
+pretty_midi==0.2.11
+adtof-pytorch @ git+https://github.com/xavriley/ADTOF-pytorch.git

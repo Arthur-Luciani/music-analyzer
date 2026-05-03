@@ -21,18 +21,18 @@ function toCompatibilityClass(scoreValue) {
 function toBreakdownLabel(metricKey) {
   const normalized = String(metricKey || "").trim().toLowerCase();
   if (normalized === "title") {
-    return "Titulo";
+    return "Título";
   }
   if (normalized === "artist") {
     return "Artista";
   }
   if (normalized === "duration") {
-    return "Duracao";
+    return "Duração";
   }
   if (normalized === "quality") {
     return "Qualidade";
   }
-  return normalized || "Metrica";
+  return normalized || "Métrica";
 }
 
 export default function DiscoverPage({
@@ -55,40 +55,14 @@ export default function DiscoverPage({
     <>
       <div className="page-title-row animate-up">
         <div>
-          <h1>1. Escolha a faixa certa</h1>
-          <p>Primeiro passo: buscar e confirmar uma unica fonte para evitar retrabalho no processamento.</p>
+          <h1>Descobrir</h1>
         </div>
-        <span className="state processing">Inicio</span>
+        <span className="state processing">Pronto</span>
       </div>
-
-      <section className="card animate-up" style={{ marginTop: 12, animationDelay: "70ms" }}>
-        <div className="timeline">
-          <article className="step live">
-            <div className="name">1. Descobrir</div>
-            <div className="meta">Escolha da fonte</div>
-          </article>
-          <article className="step">
-            <div className="name">2. Processamento</div>
-            <div className="meta">Separacao automatica</div>
-          </article>
-          <article className="step">
-            <div className="name">3. Workspace</div>
-            <div className="meta">Mix e preview</div>
-          </article>
-          <article className="step">
-            <div className="name">4. Biblioteca</div>
-            <div className="meta">Reuso e historico</div>
-          </article>
-        </div>
-      </section>
 
       <div className="main-grid" style={{ marginTop: 12 }}>
         <section className="card hero-card animate-up" style={{ animationDelay: "90ms" }}>
-          <span className="kicker">Passo unico</span>
-          <h2 style={{ marginTop: 10 }}>Buscar e validar a melhor fonte</h2>
-          <p className="hero-copy" style={{ marginTop: 8 }}>
-            A tela agora tem um unico objetivo: voce escolhe uma fonte e segue para processamento. Sem telemetria aqui.
-          </p>
+          <h2 style={{ marginTop: 10 }}>Buscar e validar fonte</h2>
 
           <form className="field-grid" onSubmit={handleSubmit}>
             <label htmlFor="query">Buscar faixa ou colar URL</label>
@@ -105,7 +79,7 @@ export default function DiscoverPage({
                 {searching ? "Buscando..." : "Buscar fontes"}
               </button>
               <button type="submit" className="btn btn-accent" disabled={loading}>
-                {processing ? "Processando..." : "Iniciar sessao"}
+                {processing ? "Processando..." : "Iniciar sessão"}
               </button>
             </div>
           </form>
@@ -177,7 +151,7 @@ export default function DiscoverPage({
 
         <aside className="stack">
           <section className="card action-panel animate-up" style={{ animationDelay: "120ms" }}>
-            <h3>Decisao atual</h3>
+            <h3>Decisão atual</h3>
             <div className="kv-list">
               <div className="kv">
                 <span>Faixa</span>
@@ -188,13 +162,13 @@ export default function DiscoverPage({
                 <strong>{selectedCandidate?.source || "--"}</strong>
               </div>
               <div className="kv">
-                <span>Duracao</span>
+                <span>Duração</span>
                 <strong>
                   {selectedCandidate ? formatDuration(selectedCandidate.duration_seconds) : "--"}
                 </strong>
               </div>
               <div className="kv">
-                <span>Sessao</span>
+                <span>Sessão</span>
                 <strong className="mono">{sessionCode}</strong>
               </div>
               <div className="kv">
@@ -206,15 +180,15 @@ export default function DiscoverPage({
                 </strong>
               </div>
             </div>
-            <p className="inline-note">Proximo passo: acompanhar separacao em tempo real.</p>
+            <p className="inline-note">Próximo passo: acompanhar separação em tempo real.</p>
           </section>
 
           <section className="card animate-up" style={{ animationDelay: "170ms" }}>
             <h3>Regras simples da jornada</h3>
             <ul className="flow-checklist">
-              <li>Escolher apenas uma fonte por sessao.</li>
-              <li>Ajustes de audio ficam apenas no workspace.</li>
-              <li>Biblioteca serve para retomar e duplicar sessoes.</li>
+              <li>Escolher apenas uma fonte por sessão.</li>
+              <li>Ajustes de áudio ficam apenas no workspace.</li>
+              <li>Biblioteca serve para retomar e duplicar sessões.</li>
             </ul>
           </section>
         </aside>

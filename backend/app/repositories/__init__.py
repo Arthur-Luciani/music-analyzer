@@ -1,1 +1,1 @@
-from app.repositories.session_store import SQLiteSessionStore
+from app.repositories.session_repository import SessionRepository

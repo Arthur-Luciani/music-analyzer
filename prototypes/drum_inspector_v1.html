@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Analyzer - Inspetor de Bateria</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #121416;
+            --bg-surface: #1a1d21;
+            --text-strong: #eceff3;
+            --text-muted: #9199a3;
+            --accent: #c18a3a;
+            --line: #323840;
+            --radius-xl: 12px;
+            --zoom: 1; 
+            --base-width: 2500px;
+
+            --color-cymbals: #78baaf; --color-hihat: #c18a3a; --color-tom-high: #9a7fba;
+            --color-tom-low: #6b78ba; --color-snare: #5ba17a; --color-kick: #ba6b78;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            background-color: var(--bg-base); font-family: 'Sora', sans-serif;
+            margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+            background: linear-gradient(160deg, #0f1215 0%, #161a20 45%, #121416 100%);
+        }
+
+        .header {
+            background: rgba(26, 29, 33, 0.95); border: 1px solid var(--line); border-radius: var(--radius-xl);
+            margin: 16px 16px 0; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between;
+            backdrop-filter: blur(10px); z-index: 100;
+        }
+
+        .zoom-control { display: flex; align-items: center; gap: 10px; background: #252a31; padding: 5px 15px; border-radius: 20px; border: 1px solid var(--line); }
+        .zoom-control input { cursor: pointer; accent-color: var(--accent); width: 120px; }
+
+        .btn-ui {
+            background: #252a31; border: 1px solid var(--line); color: var(--text-muted);
+            padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;
+        }
+
+        .scroll-container { overflow-x: auto; overflow-y: hidden; }
+        .scroll-container::-webkit-scrollbar { height: 4px; }
+        .scroll-container::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+
+        .master-wave-wrap {
+            height: 100px; background: rgba(0,0,0,0.3); margin: 0 16px; border-radius: var(--radius-xl);
+            border: 1px solid var(--line); position: relative; overflow: hidden; flex-shrink: 0;
+        }
+
+        .timeline-content {
+            width: calc(var(--base-width) * var(--zoom));
+            min-width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .waveform-svg {
+            width: 100%; height: 100%; display: flex; align-items: center; gap: 2px; padding-left: 180px; opacity: 0.4;
+        }
+        .wave-bar { flex: 1; background: var(--accent); border-radius: 1px; min-width: 2px; }
+
+        .drum-grid {
+            flex: 1; margin: 12px 16px 20px; background: rgba(26, 29, 33, 0.4); 
+            border: 1px solid var(--line); border-radius: var(--radius-xl);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .grid-scroll-area { flex: 1; overflow: auto; }
+
+        /* CONTAINER ESPECÍFICO PARA AS LANES */
+        #lane-stack { position: relative; display: flex; flex-direction: column; }
+
+        .lane { height: 58px; display: flex; border-bottom: 1px solid rgba(255,255,255,0.02); position: relative; }
+
+        .label {
+            width: 180px; min-width: 180px; background: rgba(35, 39, 46, 0.95);
+            border-right: 1px solid var(--line); display: flex; align-items: center;
+            padding: 0 20px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-muted); position: sticky; left: 0; z-index: 10;
+        }
+
+        .marker {
+            position: absolute; top: 20%; width: 6px; height: 60%; border-radius: 2px;
+            transform: translateX(-50%); cursor: pointer;
+        }
+
+        .playhead {
+            position: absolute; top: 0; left: 0; width: 2px; background: #fff;
+            box-shadow: 0 0 12px #fff; z-index: 5; pointer-events: none;
+        }
+
+        .ruler {
+            height: 24px; background: rgba(0,0,0,0.2); display: flex; align-items: center;
+            padding-left: 180px; font-family: 'IBM Plex Mono'; font-size: 10px; color: #484f58;
+            border-bottom: 1px solid var(--line); width: 100%;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="btn-ui">← ESTÚDIO</button>
+            <div style="width: 1px; height: 24px; background: var(--line);"></div>
+            <strong style="color: var(--accent); font-size: 13px; letter-spacing: 1.5px;">INSPETOR DE BATERIA</strong>
+        </div>
+
+        <div class="zoom-control">
+            <span style="font-size: 10px; color: var(--text-muted); font-weight: bold;">ZOOM:</span>
+            <input type="range" id="zoom-slider" min="0.5" max="5" step="0.1" value="1">
+        </div>
+
+        <button class="btn-ui" style="background: var(--accent); color: white; border: none;">SALVAR PROJETO</button>
+    </header>
+
+    <section class="master-wave-wrap scroll-container" id="wave-scroll-container">
+        <div class="timeline-content">
+            <div class="waveform-svg" id="master-wave"></div>
+            <div class="playhead" id="ph-top" style="height: 100%;"></div>
+        </div>
+    </section>
+
+    <main class="drum-grid">
+        <div class="grid-scroll-area" id="grid-scroll-container">
+            <div class="timeline-content">
+                <div class="ruler" id="ruler"></div>
+                
+                <!-- PLAYHEAD AGORA DENTRO DESTE STACK ESPECÍFICO -->
+                <div id="lane-stack">
+                    <div class="playhead" id="ph-grid"></div>
+
+                    <div class="lane">
+                        <div class="label" style="border-right: 4px solid var(--color-cymbals);">Pratos</div>
+                        <div style="flex:1; position:relative;" id="lane-cymbals"></div>
+                    </div>
+                    <div class="lane">
+                        <div class="label" style="border-right: 4px solid var(--color-hihat);">Chimbal</div>
+                        <div style="flex:1; position:relative;" id="lane-hihat"></div>
+                    </div>
+                    <div class="lane">
+                        <div class="label" style="border-right: 4px solid var(--color-tom-high);">Tom Agudo</div>
+                        <div style="flex:1; position:relative;" id="lane-tom-h"></div>
+                    </div>
+                    <div class="lane">
+                        <div class="label" style="border-right: 4px solid var(--color-tom-low);">Surdo</div>
+                        <div style="flex:1; position:relative;" id="lane-tom-l"></div>
+                    </div>
+                    <div class="lane">
+                        <div class="label" style="border-right: 4px solid var(--color-snare);">Caixa</div>
+                        <div style="flex:1; position:relative;" id="lane-snare"></div>
+                    </div>
+                    <div class="lane">
+                        <div class="label" style="border-right: 4px solid var(--color-kick);">Bumbo</div>
+                        <div style="flex:1; position:relative;" id="lane-kick"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const zoomSlider = document.getElementById('zoom-slider');
+        const waveContainer = document.getElementById('wave-scroll-container');
+        const gridContainer = document.getElementById('grid-scroll-container');
+
+        waveContainer.onscroll = () => gridContainer.scrollLeft = waveContainer.scrollLeft;
+        gridContainer.onscroll = () => waveContainer.scrollLeft = gridContainer.scrollLeft;
+
+        zoomSlider.oninput = (e) => {
+            document.documentElement.style.setProperty('--zoom', e.target.value);
+            updatePlayheadHeight();
+        };
+
+        function fillMasterWave() {
+            const container = document.getElementById('master-wave');
+            if(!container) return;
+            for(let i=0; i<300; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'wave-bar';
+                bar.style.height = (Math.random()*70+10) + '%';
+                container.appendChild(bar);
+            }
+        }
+
+        function fillRuler() {
+            const container = document.getElementById('ruler');
+            if(!container) return;
+            for(let i=0; i<30; i++) {
+                const mark = document.createElement('div');
+                mark.style.minWidth = '200px';
+                mark.style.borderLeft = '1px solid #30363d';
+                mark.style.paddingLeft = '8px';
+                mark.innerText = `00:${i < 10 ? '0'+i : i}:00`;
+                container.appendChild(mark);
+            }
+        }
+
+        function generateHits(containerId, color, density) {
+            const area = document.getElementById(containerId);
+            if(!area) return;
+            for(let i=0; i<50; i++) {
+                if(Math.random() < density) {
+                    const hit = document.createElement('div');
+                    hit.className = 'marker';
+                    hit.style.background = color;
+                    hit.style.boxShadow = `0 0 10px ${color}55`;
+                    hit.style.left = (i * 120 + Math.random()*50) + 'px';
+                    area.appendChild(hit);
+                }
+            }
+        }
+
+        function updatePlayheadHeight() {
+            const stack = document.getElementById('lane-stack');
+            const phGrid = document.getElementById('ph-grid');
+            if(stack && phGrid) {
+                phGrid.style.height = stack.offsetHeight + 'px';
+            }
+        }
+
+        fillMasterWave();
+        fillRuler();
+        generateHits('lane-cymbals', 'var(--color-cymbals)', 0.3);
+        generateHits('lane-hihat', 'var(--color-hihat)', 0.8);
+        generateHits('lane-tom-h', 'var(--color-tom-high)', 0.2);
+        generateHits('lane-tom-l', 'var(--color-tom-low)', 0.2);
+        generateHits('lane-snare', 'var(--color-snare)', 0.4);
+        generateHits('lane-kick', 'var(--color-kick)', 0.6);
+
+        let basePos = 180;
+        setInterval(() => {
+            basePos += 1;
+            if(basePos > 5000) basePos = 180;
+            const currentZoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--zoom'));
+            const finalPos = basePos * currentZoom;
+            
+            const phTop = document.getElementById('ph-top');
+            const phGrid = document.getElementById('ph-grid');
+            if(phTop) phTop.style.left = finalPos + 'px';
+            if(phGrid) phGrid.style.left = finalPos + 'px';
+            updatePlayheadHeight();
+        }, 16);
+
+        window.addEventListener('resize', updatePlayheadHeight);
+        updatePlayheadHeight();
+    </script>
+</body>
+</html>

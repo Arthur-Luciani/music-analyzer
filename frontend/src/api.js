@@ -83,6 +83,15 @@ export async function reprocessSession(sessionId) {
   return parseResponse(response);
 }
 
+export async function deleteSession(sessionId) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "DELETE",
+  });
+  // 204 No Content — no body to parse
+  if (response.status === 204) return true;
+  return parseResponse(response);
+}
+
 export async function getSessionEvents(sessionId) {
   const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/events`);
   return parseResponse(response);
@@ -130,19 +139,52 @@ export function getExportFileUrl(sessionId, exportId, fileName) {
 }
 
 export function getStemAudioUrl(jobId, stemName) {
-  return `/api/jobs/${encodeURIComponent(jobId)}/stems/${encodeURIComponent(stemName)}.wav`;
+  return `/api/jobs/${encodeURIComponent(jobId)}/stems/${encodeURIComponent(stemName)}.mp3`;
 }
 
-export function connectJobSocket(jobId, onMessage, onError) {
+export async function triggerDrumAnalysis(sessionId) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/drum-analysis`, {
+    method: "POST",
+  });
+  return parseResponse(response);
+}
+
+export async function getDrumAnalysis(sessionId) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/drum-analysis`);
+  return parseResponse(response);
+}
+
+export async function saveDrumCorrections(sessionId, hits) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/drum-analysis/corrections`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ hits }),
+  });
+  return parseResponse(response);
+}
+
+export function connectJobSocket(jobId, onMessage, onError, onClose, onOpen) {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const socket = new WebSocket(`${protocol}//${window.location.host}/ws/${jobId}`);
 
-  socket.onmessage = (event) => {
-    onMessage(JSON.parse(event.data));
+  socket.onopen = (event) => {
+    onOpen?.(event);
   };
 
-  socket.onerror = () => {
+  socket.onmessage = (event) => {
+    try {
+      onMessage(JSON.parse(event.data));
+    } catch (err) {
+      console.error("Failed to parse WebSocket message:", err);
+    }
+  };
+
+  socket.onerror = (event) => {
     onError?.(new Error("WebSocket connection error"));
+  };
+
+  socket.onclose = (event) => {
+    onClose?.(event);
   };
 
   return socket;

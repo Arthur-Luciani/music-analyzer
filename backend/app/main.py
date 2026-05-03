@@ -1,12 +1,30 @@
 import asyncio
+import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.models import ExportJob, ExportRequest, JobState, MixState, MixStateUpdate, ProcessRequest, ProcessResponse, SearchResponse, SessionDetail, SessionEvent, SessionListResponse
+from app.models import (
+    ExportJob,
+    ExportRequest,
+    JobState,
+    MixState,
+    MixStateUpdate,
+    ProcessRequest,
+    ProcessResponse,
+    SearchResponse,
+    SessionDetail,
+    SessionEvent,
+    SessionListResponse,
+    DrumAnalysis,
+    DrumCorrections,
+)
+from app.use_cases.generate_drum_midi import GenerateDrumMidiUseCase
 from app.settings import settings
 from app.services.jobs import job_service
 
@@ -101,6 +119,7 @@ async def get_session(session_id: str) -> SessionDetail:
 
     return SessionDetail(
         session_id=job.session_id,
+        job_id=job.job_id,
         session_code=job.session_code,
         track_title=job.selected_track.title if job.selected_track else None,
         artist=job.selected_track.artist if job.selected_track else None,
@@ -164,6 +183,13 @@ async def reprocess_session(session_id: str, background_tasks: BackgroundTasks) 
     )
 
 
+@app.delete("/api/sessions/{session_id}", status_code=204)
+async def delete_session(session_id: str) -> None:
+    deleted = await job_service.delete_session(session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+
 @app.get("/api/sessions/{session_id}/mix-state", response_model=MixState)
 async def get_session_mix_state(session_id: str) -> MixState:
     mix_state = await job_service.get_mix_state(session_id)
@@ -223,6 +249,69 @@ async def download_export_file(session_id: str, export_id: str, file_name: str) 
     return FileResponse(path=export_file, filename=file_name)
 
 
+@app.post("/api/sessions/{session_id}/drum-analysis")
+async def trigger_drum_analysis(session_id: str, background_tasks: BackgroundTasks):
+    """Dispara análise do stem de bateria em background."""
+    background_tasks.add_task(job_service.analyze_drum_stem, session_id)
+    return {"status": "started"}
+
+
+@app.get("/api/sessions/{session_id}/drum-analysis", response_model=DrumAnalysis)
+async def get_drum_analysis(session_id: str):
+    """Retorna análise salva ou 404 se ainda não foi executada."""
+    analysis = await job_service.get_drum_analysis(session_id)
+    if analysis is None:
+        raise HTTPException(status_code=404, detail="Drum analysis not found")
+    return analysis
+
+
+@app.post("/api/sessions/{session_id}/drum-analysis/corrections", response_model=DrumAnalysis)
+async def post_drum_corrections(session_id: str, payload: DrumCorrections):
+    """Salva correções manuais do usuário para a análise de bateria."""
+    analysis = await job_service.save_drum_corrections(session_id, payload)
+    if analysis is None:
+        raise HTTPException(status_code=404, detail="Session or analysis not found")
+    return analysis
+
+
+@app.get("/api/sessions/{session_id}/drum-analysis/drums.mid")
+async def download_drum_midi(session_id: str):
+    """Download do arquivo MIDI da transcrição de bateria."""
+    try:
+        use_case = GenerateDrumMidiUseCase(job_service)
+        path = await use_case.execute(session_id, format="midi")
+        if path is None or not path.is_file():
+            raise HTTPException(status_code=404, detail="MIDI not available. Run drum analysis first.")
+        return FileResponse(
+            path=str(path),
+            media_type="audio/midi",
+            filename="bateria.mid",
+            content_disposition_type="attachment",
+        )
+    except Exception as e:
+        logger.error(f"Error generating MIDI for {session_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/sessions/{session_id}/drum-analysis/drums.musicxml")
+async def download_drum_musicxml(session_id: str):
+    """Download do MusicXML para editar em MuseScore."""
+    try:
+        use_case = GenerateDrumMidiUseCase(job_service)
+        path = await use_case.execute(session_id, format="musicxml")
+        if path is None or not path.is_file():
+            raise HTTPException(status_code=404, detail="MusicXML not available. Run drum analysis first.")
+        return FileResponse(
+            path=str(path),
+            media_type="application/vnd.recordare.musicxml+xml",
+            filename="bateria.musicxml",
+            content_disposition_type="attachment",
+        )
+    except Exception as e:
+        logger.error(f"Error generating MusicXML for {session_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/jobs/{job_id}")
 async def get_job(job_id: str) -> dict:
     job = await job_service.get_job(job_id)
@@ -231,7 +320,14 @@ async def get_job(job_id: str) -> dict:
     return job.model_dump(mode="json")
 
 
-@app.get("/api/jobs/{job_id}/stems/{stem_name}.wav")
+@app.post("/api/admin/cleanup", status_code=200)
+async def trigger_cleanup(days_old: int = Query(15, ge=1, le=365)) -> dict:
+    older_than = datetime.utcnow() - timedelta(days=days_old)
+    deleted_count = await job_service.cleanup_stale_sessions(older_than)
+    return {"status": "success", "deleted_sessions": deleted_count, "days_old_threshold": days_old}
+
+
+@app.get("/api/jobs/{job_id}/stems/{stem_name}.mp3")
 async def get_job_stem_audio(job_id: str, stem_name: str) -> FileResponse:
     if stem_name not in {"vocals", "drums", "bass", "other"}:
         raise HTTPException(status_code=404, detail="Stem not found")
@@ -240,7 +336,15 @@ async def get_job_stem_audio(job_id: str, stem_name: str) -> FileResponse:
     if job is None or not job.stems or stem_name not in job.stems:
         raise HTTPException(status_code=404, detail="Stem not found")
 
-    requested_file = Path(job.stems[stem_name]).resolve()
+    raw_path = job.stems[stem_name]
+    # Se o caminho veio de um ambiente Docker (/app/storage/...), 
+    # convertemos para o storage_root local.
+    if raw_path.startswith("/app/storage/"):
+        relative_part = raw_path.replace("/app/storage/", "", 1)
+        requested_file = (settings.storage_root / relative_part).resolve()
+    else:
+        requested_file = Path(raw_path).resolve()
+        
     storage_root = settings.storage_root.resolve()
 
     try:
@@ -251,7 +355,7 @@ async def get_job_stem_audio(job_id: str, stem_name: str) -> FileResponse:
     if not requested_file.is_file():
         raise HTTPException(status_code=404, detail="Stem file is unavailable")
 
-    return FileResponse(path=requested_file, media_type="audio/wav", filename=f"{stem_name}.wav")
+    return FileResponse(path=requested_file, media_type="audio/mpeg", filename=f"{stem_name}.mp3")
 
 
 @app.websocket("/ws/{job_id}")
