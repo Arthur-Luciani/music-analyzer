@@ -33,14 +33,17 @@ class SaveDrumCorrectionsUseCase:
         analysis.is_corrected = True
         analysis.analyzed_at = datetime.utcnow()
 
-        # Persistir a análise atualizada (sobrescreve o original ou poderíamos salvar em outro lugar)
-        # O usuário mencionou usar isso para treinar, então talvez salvar separadamente seja bom.
-        # Mas para a UI, queremos mostrar a versão corrigida.
-        
-        # Vamos salvar o histórico de correções
+        # Recalcular padrões rítmicos baseados nas correções
+        try:
+            from app.use_cases.extract_groove_patterns import ExtractGroovePatternsUseCase
+            extractor = ExtractGroovePatternsUseCase()
+            analysis.patterns = extractor.execute(analysis)
+            logger.info(f"Re-extracted {len(analysis.patterns)} groove patterns after manual correction for session {session_id}")
+        except Exception as e:
+            logger.error(f"Failed to re-extract patterns after correction: {e}")
+
+        # Persistir a análise atualizada
         self._persist_corrections(session_id, corrections)
-        
-        # E atualizar o arquivo principal de análise para a UI refletir as mudanças
         AnalyzeDrumStemUseCase._persist_analysis(session_id, analysis)
         
         return analysis

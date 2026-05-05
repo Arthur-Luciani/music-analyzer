@@ -154,6 +154,11 @@ export async function getDrumAnalysis(sessionId) {
   return parseResponse(response);
 }
 
+export async function getDrumSamples(sessionId) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/drum-analysis/samples`);
+  return parseResponse(response);
+}
+
 export async function saveDrumCorrections(sessionId, hits) {
   const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/drum-analysis/corrections`, {
     method: "POST",

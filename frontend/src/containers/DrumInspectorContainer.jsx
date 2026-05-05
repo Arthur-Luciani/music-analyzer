@@ -44,10 +44,17 @@ export default function DrumInspectorContainer({ session, workspace, onBack }) {
     isPlaying,
   });
 
-  // Sync ref with state
+  // Sincroniza o ref sempre que a prop mudar
   useEffect(() => {
     currentTimeRef.current = currentTime;
   }, [currentTime]);
+
+  // Forçar atualização da análise ao entrar no Inspetor
+  useEffect(() => {
+    if (session?.session_id) {
+      workspace.fetchDrumAnalysis(session.session_id);
+    }
+  }, [session?.session_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialize hits from analysis
   useEffect(() => {
@@ -233,6 +240,7 @@ export default function DrumInspectorContainer({ session, workspace, onBack }) {
         zoomLevel={zoomLevel}
         onZoom={setZoomLevel}
         scrollRef={scrollRef}
+        onTriggerAnalysis={() => workspace.triggerDrumAnalysisAction(session.session_id)}
       />
     </>
   );

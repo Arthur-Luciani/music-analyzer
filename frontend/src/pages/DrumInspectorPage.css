@@ -259,3 +259,32 @@
   font-weight: bold;
   margin-right: 4px;
 }
+
+/* Mode Toggle */
+.mode-toggle {
+  display: flex;
+  background: #20242a;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+  gap: 4px;
+}
+
+.mode-toggle .pill-btn {
+  border: none;
+  background: transparent;
+}
+
+.mode-toggle .pill-btn.active {
+  background: #323841;
+  color: #fff;
+}
+
+.study-mode-content {
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

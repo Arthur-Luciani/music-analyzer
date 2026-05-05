@@ -11,6 +11,18 @@ class DrumHit(BaseModel):
     confidence: float = 0.0                  # probabilidade do modelo
 
 
+class GroovePattern(BaseModel):
+    """Representa um padrão rítmico recorrente (groove)."""
+    name: str                  # ex: "Groove Principal", "Variação A"
+    frequency: int             # quantas vezes aparece na música
+    score: float               # complexidade ou 'groove score'
+    kick: str                  # representação binária (ex: "10001000...")
+    snare: str
+    hihat: str
+    tom: str = ""
+    is_main: bool = False
+
+
 class DrumAnalysis(BaseModel):
     """Resultado completo da análise do stem de bateria."""
     bpm: float                         # BPM global estimado
@@ -19,7 +31,8 @@ class DrumAnalysis(BaseModel):
     beat_count: int                    # total de beats detectados
     beats: list[float]                 # timestamps de cada beat [0.0, 0.5, 1.0, ...]
     hits: list[DrumHit] = []           # golpes detectados (populado na Fase 3)
-    analysis_version: str = "1.0"
+    patterns: list[GroovePattern] = [] # padrões identificados (Top 3-5)
+    analysis_version: str = "1.1"
     analyzed_at: datetime
     status: str = "partial"            # partial | complete
     is_corrected: bool = False         # indica se foi editado manualmente pelo usuário

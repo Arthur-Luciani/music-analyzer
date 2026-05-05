@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useRef } from 'react';
+import GrooveAnalyzer from '../components/GrooveAnalyzer';
 import './DrumInspectorPage.css';
 
 const LANES = [
@@ -28,8 +29,10 @@ export default function DrumInspectorPage({
   onBack,
   zoomLevel,
   onZoom,
-  scrollRef
+  scrollRef,
+  onTriggerAnalysis
 }) {
+  const [viewMode, setViewMode] = React.useState('technical'); // technical | study
   const laneStackRef = useRef(null);
   const waveScrollRef = useRef(null);
   const phTopRef = useRef(null);
@@ -148,6 +151,21 @@ export default function DrumInspectorPage({
         </div>
         
         <div className="header-right">
+          <div className="mode-toggle">
+            <button 
+              className={`pill-btn ${viewMode === 'technical' ? 'active' : ''}`}
+              onClick={() => setViewMode('technical')}
+            >
+              INSPETOR TÉCNICO
+            </button>
+            <button 
+              className={`pill-btn ${viewMode === 'study' ? 'active' : ''}`}
+              onClick={() => setViewMode('study')}
+            >
+              MODO DE ESTUDO
+            </button>
+          </div>
+          <div className="header-divider"></div>
           <button 
             className="btn-ui save-btn" 
             onClick={onSave}
@@ -158,58 +176,70 @@ export default function DrumInspectorPage({
         </div>
       </header>
 
-      {/* Onda de Referência (Waveform Master) */}
-      <section 
-        className="master-wave-wrap scroll-container" 
-        ref={waveScrollRef}
-        style={{ overflow: 'hidden', pointerEvents: 'none' }}
-      >
-        <div className="playhead" id="ph-top" ref={phTopRef} style={{ height: '100%', display: 'none' }}></div>
-        <div className="timeline-content" style={{ width: `${duration * zoomPx + 200}px` }}>
-          <div className="waveform-container" ref={containerRef}></div>
-        </div>
-      </section>
-
-      {/* Grid de Edição Técnica */}
-      <main className="drum-grid">
-        <div 
-          className="grid-scroll-area" 
-          ref={scrollRef} 
-          onScroll={handleScroll}
-          style={{ position: 'relative' }}
-        >
-          {/* Playhead do Grid movido para fora do timeline-content */}
-          <div 
-            className="playhead" 
-            id="ph-grid" 
-            ref={phGridRef}
-            style={{ height: '100%', display: 'none' }}
-          ></div>
-
-          <div className="timeline-content" style={{ width: `${duration * zoomPx + 200}px` }}>
-            <div className="ruler">
-              {Array.from({ length: Math.ceil(duration / 5) }).map((_, i) => (
-                <div key={i} className="ruler-mark" style={{ left: `${i * 5 * zoomPx + 180}px` }}>
-                  00:{String(i * 5).padStart(2, '0')}:00
-                </div>
-              ))}
+      {viewMode === 'technical' ? (
+        <>
+          {/* Onda de Referência (Waveform Master) */}
+          <section 
+            className="master-wave-wrap scroll-container" 
+            ref={waveScrollRef}
+            style={{ overflow: 'hidden', pointerEvents: 'none' }}
+          >
+            <div className="playhead" id="ph-top" ref={phTopRef} style={{ height: '100%', display: 'none' }}></div>
+            <div className="timeline-content" style={{ width: `${duration * zoomPx + 200}px` }}>
+              <div className="waveform-container" ref={containerRef}></div>
             </div>
+          </section>
 
-            <div id="lane-stack" ref={laneStackRef}>
-              {LANES.map(lane => (
-                <div key={lane.id} className="lane">
-                  <div className="label" style={{ borderRight: `4px solid ${lane.color}` }}>
-                    {lane.label}
-                  </div>
-                  <div className="lane-hit-area">
-                    {renderMarkers(lane.id, lane.color)}
-                  </div>
+          {/* Grid de Edição Técnica */}
+          <main className="drum-grid">
+            <div 
+              className="grid-scroll-area" 
+              ref={scrollRef} 
+              onScroll={handleScroll}
+              style={{ position: 'relative' }}
+            >
+              <div 
+                className="playhead" 
+                id="ph-grid" 
+                ref={phGridRef}
+                style={{ height: '100%', display: 'none' }}
+              ></div>
+
+              <div className="timeline-content" style={{ width: `${duration * zoomPx + 200}px` }}>
+                <div className="ruler">
+                  {Array.from({ length: Math.ceil(duration / 5) }).map((_, i) => (
+                    <div key={i} className="ruler-mark" style={{ left: `${i * 5 * zoomPx + 180}px` }}>
+                      00:{String(i * 5).padStart(2, '0')}:00
+                    </div>
+                  ))}
                 </div>
-              ))}
+
+                <div id="lane-stack" ref={laneStackRef}>
+                  {LANES.map(lane => (
+                    <div key={lane.id} className="lane">
+                      <div className="label" style={{ borderRight: `4px solid ${lane.color}` }}>
+                        {lane.label}
+                      </div>
+                      <div className="lane-hit-area">
+                        {renderMarkers(lane.id, lane.color)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </main>
+          </main>
+        </>
+      ) : (
+        <main className="study-mode-content" style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
+          <GrooveAnalyzer 
+            patterns={analysis?.patterns || []} 
+            bpm={analysis?.bpm || 120} 
+            onTriggerAnalysis={onTriggerAnalysis}
+            sessionId={session?.session_id}
+          />
+        </main>
+      )}
 
       {/* 2. Control Dashboard (Padrao do Estúdio) */}
       <section className="control-dashboard">

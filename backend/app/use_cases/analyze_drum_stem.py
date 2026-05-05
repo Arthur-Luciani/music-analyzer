@@ -125,11 +125,41 @@ class AnalyzeDrumStemUseCase:
         y, sr = librosa.load(str(stem_path), sr=22050)
         tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
         bpm = float(tempo[0]) if isinstance(tempo, (np.ndarray, list)) else float(tempo)
+        
+        # Refinamento de BPM via Hits (especialmente útil para stems de bateria)
+        if len(hits) > 20:
+            try:
+                kick_times = np.array([h.time for h in hits if h.type == 'kick'])
+                if len(kick_times) > 10:
+                    diffs = np.diff(kick_times)
+                    # Filtrar intervalos plausíveis para beats ou colcheias (0.2s a 0.8s)
+                    valid_diffs = diffs[(diffs > 0.2) & (diffs < 0.8)]
+                    if len(valid_diffs) > 5:
+                        refined_avg_diff = np.median(valid_diffs)
+                        refined_bpm = 60.0 / refined_avg_diff
+                        # Se estiver muito longe do Librosa, pode ser uma subdivisão (dobro/metade)
+                        if abs(refined_bpm - bpm) < 10:
+                            bpm = refined_bpm
+                        elif abs(refined_bpm*2 - bpm) < 5:
+                            bpm = refined_bpm * 2
+                        elif abs(refined_bpm/2 - bpm) < 5:
+                            bpm = refined_bpm / 2
+            except Exception as e:
+                logger.warning(f"Failed to refine BPM via hits: {e}")
+
         beat_times = librosa.frames_to_time(beat_frames, sr=sr).tolist()
         
+        # Alinhamento de Fase: Ajustar o primeiro beat para coincidir com o primeiro Kick forte
+        if len(hits) > 0 and len(beat_times) > 0:
+            first_kick = next((h for h in hits if h.type == 'kick' and h.velocity > 0.5), hits[0])
+            offset = first_kick.time - beat_times[0]
+            # Se o offset for significativo, deslocamos a grade inteira
+            if abs(offset) < (60.0 / bpm): # Não deslocar mais que um beat
+                beat_times = [t + offset for t in beat_times]
+
         duration = float(librosa.get_duration(y=y, sr=sr))
 
-        return DrumAnalysis(
+        analysis = DrumAnalysis(
             bpm=round(bpm, 1),
             time_signature="4/4",
             duration_seconds=round(duration, 2),
@@ -139,6 +169,17 @@ class AnalyzeDrumStemUseCase:
             analyzed_at=datetime.utcnow(),
             status="complete",
         )
+
+        # 5. Extração de Padrões (Fase 3)
+        try:
+            from app.use_cases.extract_groove_patterns import ExtractGroovePatternsUseCase
+            extractor = ExtractGroovePatternsUseCase()
+            analysis.patterns = extractor.execute(analysis)
+            logger.info(f"Identified {len(analysis.patterns)} groove patterns for session {session_id}")
+        except Exception as e:
+            logger.error(f"Failed to extract groove patterns: {e}")
+
+        return analysis
 
 
     @staticmethod

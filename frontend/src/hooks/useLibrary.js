@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { listSessions, duplicateSession, reprocessSession, deleteSession } from "../api";
 
 const LIBRARY_PAGE_SIZE = 8;
@@ -23,9 +23,10 @@ export function useLibrary() {
   const [actionLoading, setActionLoading] = useState("");
   const [actionMessage, setActionMessage] = useState("");
 
-  const fetchSessions = async () => {
-    setLoading(true);
-    setError("");
+  const fetchSessions = useCallback(async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
+    // Only clear error if not background to avoid flickering error messages
+    if (!isBackground) setError("");
 
     try {
       const response = await listSessions({
@@ -36,11 +37,14 @@ export function useLibrary() {
       });
       setPayload(response);
     } catch (err) {
-      setError(err.message || "Falha ao carregar sessões");
+      // Only set error if not background
+      if (!isBackground) {
+        setError(err.message || "Falha ao carregar sessões");
+      }
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
-  };
+  }, [appliedFilters, page]);
 
   const handleDuplicate = async (sessionId) => {
     setActionLoading(`duplicate:${sessionId}`);
@@ -110,6 +114,7 @@ export function useLibrary() {
     page,
     setPage,
     payload,
+    setPayload,
     loading,
     error,
     actionLoading,

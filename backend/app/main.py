@@ -256,6 +256,20 @@ async def trigger_drum_analysis(session_id: str, background_tasks: BackgroundTas
     return {"status": "started"}
 
 
+@app.get("/api/sessions/{session_id}/drum-analysis/samples")
+async def get_drum_samples(session_id: str):
+    """Extrai e retorna URLs para os samples de áudio da bateria."""
+    analysis = await job_service.get_drum_analysis(session_id)
+    if analysis is None:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+    
+    from app.use_cases.extract_drum_samples import ExtractDrumSamplesUseCase
+    use_case = ExtractDrumSamplesUseCase(settings.stems_root)
+    samples = await use_case.execute(session_id, analysis)
+    
+    return samples
+
+
 @app.get("/api/sessions/{session_id}/drum-analysis", response_model=DrumAnalysis)
 async def get_drum_analysis(session_id: str):
     """Retorna análise salva ou 404 se ainda não foi executada."""
@@ -356,6 +370,20 @@ async def get_job_stem_audio(job_id: str, stem_name: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Stem file is unavailable")
 
     return FileResponse(path=requested_file, media_type="audio/mpeg", filename=f"{stem_name}.mp3")
+
+
+@app.get("/api/sessions/{session_id}/samples/{file_name}")
+async def get_session_sample(session_id: str, file_name: str) -> FileResponse:
+    """Serve um arquivo de sample de bateria."""
+    sample_path = (settings.stems_root / session_id / "samples" / file_name).resolve()
+    if not sample_path.is_file():
+        raise HTTPException(status_code=404, detail="Sample not found")
+    
+    # Validação de segurança básica
+    if not str(sample_path).startswith(str(settings.stems_root.resolve())):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    return FileResponse(path=sample_path, media_type="audio/wav")
 
 
 @app.websocket("/ws/{job_id}")
