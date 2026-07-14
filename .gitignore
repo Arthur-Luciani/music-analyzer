@@ -18,7 +18,11 @@ storage/stems/*
 storage/cache/*
 storage/exports/*
 storage/sessions.db
+storage/sessions.db-shm
+storage/sessions.db-wal
 backend/storage/sessions.db
+backend/storage/sessions.db-shm
+backend/storage/sessions.db-wal
 !storage/raw/.gitkeep
 !storage/stems/.gitkeep
 !storage/cache/.gitkeep
