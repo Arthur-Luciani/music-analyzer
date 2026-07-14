@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, List
 
 from yt_dlp import YoutubeDL
-from yt_dlp.utils import DownloadError
 
 from app.models import SearchCandidate, SearchResponse
 
@@ -62,8 +61,6 @@ class SearchCandidatesUseCase:
                     result = ydl.extract_info(query, download=False)
                 else:
                     result = ydl.extract_info(f"ytsearch{limit}:{query}", download=False)
-        except DownloadError:
-            return []
         except Exception:
             return []
 

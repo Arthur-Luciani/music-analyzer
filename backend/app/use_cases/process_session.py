@@ -10,12 +10,25 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from yt_dlp import YoutubeDL
-from yt_dlp.utils import DownloadError
+from yt_dlp.utils import YoutubeDLError
 
 from app.models import JobState, MasterMetrics
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
+
+
+class YTDLPLogger:
+    def debug(self, msg: str) -> None:
+        if not msg.startswith("[download]"):
+            logger.debug(msg)
+
+    def warning(self, msg: str) -> None:
+        logger.warning(msg)
+
+    def error(self, msg: str) -> None:
+        logger.error(msg)
+
 
 SUPPORTED_STEMS = ("vocals", "drums", "bass", "other")
 
@@ -88,6 +101,8 @@ class ProcessSessionUseCase:
             )
         except Exception as exc:  # pragma: no cover
             error_message = f"{type(exc).__name__}: {exc}"
+            logger.error("Processing failed for job %s: %s", job_id, error_message, exc_info=True)
+
             await self._job_service.update_job(
                 job_id,
                 state=JobState.failed,
@@ -229,7 +244,7 @@ class ProcessSessionUseCase:
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 ydl.extract_info(source_url, download=True)
-        except DownloadError as exc:
+        except YoutubeDLError as exc:
             raise RuntimeError(self._format_ytdlp_download_error(exc)) from exc
 
         downloaded_file = self._find_downloaded_audio_file(target_dir)
@@ -248,6 +263,8 @@ class ProcessSessionUseCase:
             "outtmpl": output_template,
             "restrictfilenames": True,
             "overwrites": True,
+            "noprogress": True,
+            "logger": YTDLPLogger(),
         }
 
         cookie_file = settings.yt_dlp_cookie_file
@@ -257,7 +274,7 @@ class ProcessSessionUseCase:
         return ydl_opts
 
     @staticmethod
-    def _format_ytdlp_download_error(exc: DownloadError) -> str:
+    def _format_ytdlp_download_error(exc: Exception) -> str:
         message = str(exc)
         lower_message = message.lower()
 
