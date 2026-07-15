@@ -265,6 +265,7 @@ class ProcessSessionUseCase:
             "overwrites": True,
             "noprogress": True,
             "logger": YTDLPLogger(),
+            "js_runtimes": {"deno": {}, "node": {}},
         }
 
         cookie_file = settings.yt_dlp_cookie_file
