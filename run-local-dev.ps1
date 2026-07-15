@@ -5,11 +5,13 @@ param(
     [switch]$InstallDeps,
 
     [ValidateSet("auto", "cuda", "cpu")]
-    [string]$SeparationDevice = "cuda"
+    [string]$SeparationDevice = "cuda",
+
+    [string]$StorageRoot = "D:\music-analyzer-data"
 )
 
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$backendStorageRoot = Join-Path $projectRoot "storage"
+$backendStorageRoot = $StorageRoot
 $backendTorchHome = Join-Path $backendStorageRoot "cache\torch"
 
 function Resolve-FfmpegBinaryPath {

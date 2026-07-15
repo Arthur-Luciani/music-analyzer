@@ -97,6 +97,8 @@ Pattern: `pages/` (route-level) → `containers/` (data-fetching + wiring) → p
 
 `storage/raw/{job_id}/` (downloaded source audio), `storage/stems/{job_id}/{stem}.mp3` (+ `samples/`, drum analysis artifacts), `storage/exports/`, `storage/cache/torch/` (Demucs model cache), `storage/sessions.db` (SQLite). All of `storage/*` except `.gitkeep` files is gitignored.
 
+For local (non-Docker) dev, `run-local-dev.ps1` points `STORAGE_ROOT` at `D:\music-analyzer-data` by default (override with `-StorageRoot <path>`), so the actual audio/stems/DB live outside the repo entirely rather than under `storage/` — that in-repo folder is only the gitignored fallback used by Docker/tests.
+
 ## Known gotchas
 
 - `docs/refactoring/*` describes an ORM/use-case extraction as **still pending** — it isn't; that refactor is already implemented in current `main`. Don't treat those docs as a live plan; check the actual code under `backend/app/` instead.
