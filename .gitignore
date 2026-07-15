@@ -30,4 +30,7 @@ backend/storage/sessions.db-wal
 # Environment
 .env
 
+# Local dev logs
+*.log
+
 backend/app/ml/data/drum_dataset/*
