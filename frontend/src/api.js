@@ -25,24 +25,6 @@ export async function searchCandidates(query, limit = 5) {
   return parseResponse(response);
 }
 
-export async function createProcessJob(query, selectedSourceId, targetStems) {
-  const payload = { query };
-  if (selectedSourceId) {
-    payload.selected_source_id = selectedSourceId;
-  }
-  if (Array.isArray(targetStems) && targetStems.length > 0) {
-    payload.target_stems = targetStems;
-  }
-
-  const response = await fetch("/api/process", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  return parseResponse(response);
-}
-
 export async function createDraftSession(query, selectedSourceId, targetStems) {
   const payload = { query };
   if (selectedSourceId) {
