@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from app.models import (
+    ArtistCandidate,
     ExportArtifact,
     ExportJob,
     ExportState,
@@ -13,6 +14,8 @@ from app.models import (
     MasterMetrics,
     MixState,
     MixStateUpdate,
+    MusicIdentity,
+    MusicIdentityRequest,
     SearchCandidate,
     SearchResponse,
     SessionEvent,
@@ -51,6 +54,8 @@ class JobService:
                 AnalyzeDrumStemUseCase,
                 SaveDrumCorrectionsUseCase,
                 MatchMarketMidiUseCase,
+                ResolveArtistCandidatesUseCase,
+                SaveMusicIdentityUseCase,
             )
 
             self._search_use_case = SearchCandidatesUseCase(self)
@@ -65,6 +70,8 @@ class JobService:
             self._analyze_drum_use_case = AnalyzeDrumStemUseCase(self)
             self._save_drum_corrections_use_case = SaveDrumCorrectionsUseCase(self)
             self._match_market_midi_use_case = MatchMarketMidiUseCase(self)
+            self._resolve_artist_candidates_use_case = ResolveArtistCandidatesUseCase(self)
+            self._save_music_identity_use_case = SaveMusicIdentityUseCase(self)
         except Exception as e:
             logger.error(f"Failed to load use cases: {e}")
 
@@ -289,6 +296,30 @@ class JobService:
     async def get_market_midi_status(self, session_id: str) -> Optional[MarketMidiMatchResult]:
         from app.use_cases import MatchMarketMidiUseCase
         return MatchMarketMidiUseCase.load_saved_result(session_id)
+
+    def resolve_artist_candidates(self, query: str, *, limit: int = 5) -> list[ArtistCandidate]:
+        return self._resolve_artist_candidates_use_case.execute(query, limit=limit)
+
+    def save_music_identity(self, session_id: str, payload: MusicIdentityRequest) -> MusicIdentity:
+        return self._save_music_identity_use_case.execute(session_id, payload)
+
+    @staticmethod
+    def get_music_identity(session_id: str) -> Optional[MusicIdentity]:
+        from app.repositories.session_music_identity_repository import SessionMusicIdentityRepository
+
+        saved = SessionMusicIdentityRepository().get(session_id)
+        if saved is None:
+            return None
+        return MusicIdentity(
+            session_id=saved.session_id,
+            artist_id=saved.artist_id,
+            artist_text=saved.artist_text,
+            title_text=saved.title_text,
+            source_url=saved.source_url,
+            track_id=saved.track_id,
+            resolved_midi_file_id=saved.resolved_midi_file_id,
+            resolved_at=saved.resolved_at,
+        )
 
     async def clear_session_data(self, session_id: str) -> None:
         """Clears associated data (events, exports, stems) but keeps the session."""

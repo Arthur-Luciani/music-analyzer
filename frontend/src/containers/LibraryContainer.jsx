@@ -6,7 +6,7 @@ import LibraryPage from "../pages/LibraryPage";
 import { PAGES } from "../constants";
 import { formatDuration, getStateBadgeClass, getStateBadgeLabel } from "../utils/formatters";
 
-export default function LibraryContainer({ setCurrentPage }) {
+export default function LibraryContainer({ setCurrentPage, onResumeDraft }) {
   const library = useLibrary();
   const { hydratSessionAndNavigate } = useSession();
   const { startTracking } = useProcessingContext();
@@ -96,6 +96,7 @@ export default function LibraryContainer({ setCurrentPage }) {
       onDuplicate={library.handleDuplicate}
       onReprocess={library.handleReprocess}
       onDelete={library.handleDelete}
+      onResumeDraft={onResumeDraft}
       isProcessingStatus={isProcessingStatus}
     />
   );

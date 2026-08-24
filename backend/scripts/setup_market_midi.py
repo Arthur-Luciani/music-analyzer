@@ -2,16 +2,17 @@
 a transcrição de bateria (ver app/use_cases/match_market_midi.py).
 
 Baixa o subset "Clean MIDI" do Lakh MIDI Dataset (CC-BY 4.0,
-https://colinraffel.com/projects/lmd/), extrai e constrói um índice local
-de artista/título -> caminho de arquivo, usado pelo fuzzy matching em
+https://colinraffel.com/projects/lmd/), extrai e popula o catálogo
+relacional (market_artists/market_tracks/market_midi_files, ver
+app/repositories/market_midi_repository.py) usado pelo fuzzy matching em
 app/services/market_midi_matcher.py.
 
 Uso:
     python scripts/setup_market_midi.py                 # roda tudo
     python scripts/setup_market_midi.py --download
     python scripts/setup_market_midi.py --extract
-    python scripts/setup_market_midi.py --index
-    python scripts/setup_market_midi.py --force          # refaz mesmo se já feito
+    python scripts/setup_market_midi.py --index          # popula o catálogo no banco
+    python scripts/setup_market_midi.py --force          # refaz download/extração mesmo se já feito
 
 Cada etapa é idempotente (pula se já concluída) e independente — pode ser
 interrompida e retomada (o download suporta resume via Range header).
@@ -128,7 +129,12 @@ def extract(force: bool = False) -> Path:
     return extract_dir
 
 
-def build_index() -> Path:
+def build_catalog() -> None:
+    """Popula market_artists/market_tracks/market_midi_files a partir dos
+    arquivos extraídos. Idempotente — get_or_create_artist/track e
+    add_midi_file pulam o que já está no banco, então rodar de novo (ex:
+    depois de um --extract --force) só insere o que for novo."""
+    from app.repositories.market_midi_repository import MarketMidiRepository
     from app.services.market_midi_matcher import normalize_artist, normalize_title
 
     market_midi_root = settings.market_midi_root
@@ -136,28 +142,26 @@ def build_index() -> Path:
     if not extract_dir.is_dir():
         raise FileNotFoundError(f"{extract_dir} não encontrado — rode --extract primeiro.")
 
-    entries = []
+    repo = MarketMidiRepository()
+
+    total_files = 0
     artist_dirs = [d for d in extract_dir.iterdir() if d.is_dir()]
     for artist_dir in artist_dirs:
         artist = artist_dir.name
+        artist_id = repo.get_or_create_artist(artist, normalize_artist(artist))
+
         for midi_file in artist_dir.glob("*.mid"):
             match = _TITLE_SUFFIX_RE.match(midi_file.stem)
             title = match.group("title") if match else midi_file.stem
-            relative_path = "/".join(("clean_midi", artist_dir.name, midi_file.name))
-            entries.append({
-                "artist": artist,
-                "title": title,
-                "artist_norm": normalize_artist(artist),
-                "title_norm": normalize_title(title),
-                "relative_path": relative_path,
-            })
+            track_id = repo.get_or_create_track(artist_id, title, normalize_title(title))
 
-    index_path = market_midi_root / "index.json"
-    index_path.write_text(json.dumps(entries, indent=2, ensure_ascii=False), encoding="utf-8")
+            relative_path = "/".join(("clean_midi", artist_dir.name, midi_file.name))
+            if repo.add_midi_file(track_id, relative_path) is not None:
+                total_files += 1
 
     meta = {
         "built_at": datetime.utcnow().isoformat(),
-        "total_files": len(entries),
+        "total_files": total_files,
         "total_artists": len(artist_dirs),
         "source": (
             "Lakh MIDI Dataset - Clean MIDI subset (clean_midi.tar.gz), "
@@ -166,8 +170,7 @@ def build_index() -> Path:
     }
     (market_midi_root / "index_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
-    logger.info(f"Índice construído: {len(entries)} arquivos de {len(artist_dirs)} artistas em {index_path}")
-    return index_path
+    logger.info(f"Catálogo atualizado: {total_files} arquivos novos de {len(artist_dirs)} artistas.")
 
 
 def main() -> None:
@@ -185,7 +188,7 @@ def main() -> None:
     if args.extract or run_all:
         extract(force=args.force)
     if args.index or run_all:
-        build_index()
+        build_catalog()
 
 
 if __name__ == "__main__":

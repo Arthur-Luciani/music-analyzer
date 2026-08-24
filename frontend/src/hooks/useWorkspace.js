@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { getMixState, updateMixState, createExportJob, listExportJobs, getDrumAnalysis, triggerDrumAnalysis, saveDrumCorrections as apiSaveDrumCorrections, getMarketMidiStatus } from "../api";
+import { getMixState, updateMixState, createExportJob, listExportJobs, getDrumAnalysis, triggerDrumAnalysis, saveDrumCorrections as apiSaveDrumCorrections, getMarketMidiStatus, rematchMarketMidi } from "../api";
 
 const DEFAULT_MIX_LEVELS = {
   vocals: 72,
@@ -302,6 +302,20 @@ export function useWorkspace() {
     }
   };
 
+  const rematchMarketMidiAction = async (sessionId) => {
+    if (!sessionId) return;
+    setMarketMidiStatusLoading(true);
+    setMarketMidiStatusError("");
+    try {
+      const data = await rematchMarketMidi(sessionId);
+      setMarketMidiStatus(data);
+    } catch (err) {
+      setMarketMidiStatusError(err.message || "Falha ao rebuscar MIDI de mercado");
+    } finally {
+      setMarketMidiStatusLoading(false);
+    }
+  };
+
   const saveDrumCorrectionsAction = async (sessionId, hits) => {
     if (!sessionId) return;
     setDrumAnalysisLoading(true);
@@ -351,5 +365,6 @@ export function useWorkspace() {
     marketMidiStatusLoading,
     marketMidiStatusError,
     fetchMarketMidiStatus,
+    rematchMarketMidiAction,
   };
 }

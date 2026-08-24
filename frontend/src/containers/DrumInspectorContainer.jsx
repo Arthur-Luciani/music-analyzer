@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import WaveSurfer from "wavesurfer.js";
 import DrumInspectorPage from "../pages/DrumInspectorPage";
-import { getStemAudioUrl } from "../api";
+import { getStemAudioUrl, getMusicIdentity } from "../api";
 import { useWebAudioMixer } from "../hooks/useWebAudioMixer";
+import { useMusicIdentity } from "../hooks/useMusicIdentity";
 
 export default function DrumInspectorContainer({ session, workspace, onBack }) {
   const {
@@ -24,6 +25,8 @@ export default function DrumInspectorContainer({ session, workspace, onBack }) {
   const [selectedHitIndex, setSelectedHitIndex] = useState(null);
   const [saving, setSaving] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(20);
+  const [identityEditOpen, setIdentityEditOpen] = useState(false);
+  const identity = useMusicIdentity();
 
   const containerRef = useRef(null);
   const scrollRef = useRef(null);
@@ -170,7 +173,12 @@ export default function DrumInspectorContainer({ session, workspace, onBack }) {
 
   // Keyboard Shortcuts
   useEffect(() => {
+    const isTypingTarget = (target) =>
+      target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+
     const handleKeyDown = (e) => {
+      if (isTypingTarget(e.target)) return;
+
       if (e.code === "Space") {
         e.preventDefault();
         togglePlay();
@@ -196,6 +204,50 @@ export default function DrumInspectorContainer({ session, workspace, onBack }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Corrigir artista/música de uma sessão já processada (sem passar pelo
+  // wizard de novo) e rebuscar o MIDI de mercado sob demanda — não precisa
+  // reprocessar áudio, a análise de bateria salva já é reaproveitada.
+  const handleToggleIdentityEdit = async () => {
+    if (identityEditOpen) {
+      setIdentityEditOpen(false);
+      return;
+    }
+    setIdentityEditOpen(true);
+    try {
+      const saved = await getMusicIdentity(session.session_id);
+      if (saved) {
+        identity.initFrom({ artist: saved.artist_text, title: saved.title_text, url: saved.source_url });
+      } else {
+        identity.initFrom(session.selected_track);
+      }
+    } catch {
+      identity.initFrom(session.selected_track);
+    }
+  };
+
+  const handleSaveIdentity = async () => {
+    const ok = await identity.save(session.session_id);
+    if (!ok) return;
+    await workspace.rematchMarketMidiAction(session.session_id);
+    setIdentityEditOpen(false);
+  };
+
+  const identityEdit = {
+    open: identityEditOpen,
+    onToggle: handleToggleIdentityEdit,
+    artistText: identity.artistText,
+    titleText: identity.titleText,
+    setTitleText: identity.setTitleText,
+    onArtistTextChange: identity.handleArtistTextChange,
+    selectedArtistId: identity.selectedArtistId,
+    suggestions: identity.suggestions,
+    resolving: identity.resolving,
+    pickSuggestion: identity.pickSuggestion,
+    saving: identity.confirming,
+    error: identity.error,
+    onSave: handleSaveIdentity,
   };
 
   return (
@@ -233,6 +285,7 @@ export default function DrumInspectorContainer({ session, workspace, onBack }) {
         onZoom={setZoomLevel}
         scrollRef={scrollRef}
         onTriggerAnalysis={() => workspace.triggerDrumAnalysisAction(session.session_id)}
+        identityEdit={identityEdit}
       />
     </>
   );

@@ -2,6 +2,7 @@ import asyncio
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -10,13 +11,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.models import (
+    ArtistCandidate,
     ExportJob,
     ExportRequest,
     JobState,
     MixState,
     MixStateUpdate,
+    MusicIdentity,
+    MusicIdentityRequest,
     ProcessRequest,
     ProcessResponse,
+    SearchCandidate,
     SearchResponse,
     SessionDetail,
     SessionEvent,
@@ -53,8 +58,7 @@ async def search_tracks(
     return await asyncio.to_thread(job_service.search_candidates, query, limit=limit)
 
 
-@app.post("/api/process", response_model=ProcessResponse)
-async def process_track(payload: ProcessRequest, background_tasks: BackgroundTasks) -> ProcessResponse:
+async def _resolve_selected_track(payload: ProcessRequest) -> SearchCandidate:
     search = await asyncio.to_thread(job_service.search_candidates, payload.query, limit=10)
     if not search.candidates:
         raise HTTPException(
@@ -65,7 +69,6 @@ async def process_track(payload: ProcessRequest, background_tasks: BackgroundTas
             },
         )
 
-    selected_track = None
     if payload.selected_source_id:
         selected_track = job_service.find_candidate(payload.query, payload.selected_source_id)
         if selected_track is None:
@@ -76,20 +79,84 @@ async def process_track(payload: ProcessRequest, background_tasks: BackgroundTas
                     "message": "A faixa selecionada nao pertence aos resultados desta busca",
                 },
             )
-    else:
-        selected_track = search.candidates[0]
+        return selected_track
 
+    return search.candidates[0]
+
+
+@app.post("/api/sessions/draft", response_model=ProcessResponse)
+async def create_draft_session(payload: ProcessRequest) -> ProcessResponse:
+    """Cria a sessão parada em JobState.queued, sem disparar o pipeline —
+    usado pelo step 2->3 do wizard de criação. O processamento só começa em
+    POST /api/sessions/{id}/confirm, depois que a identidade musical
+    (artista/título) é confirmada no step 3."""
+    selected_track = await _resolve_selected_track(payload)
     job = await job_service.create_job(
         payload.query,
         selected_track=selected_track,
         target_stems=payload.target_stems,
     )
-    background_tasks.add_task(job_service.run_pipeline, job.job_id)
     return ProcessResponse(
         job_id=job.job_id,
         session_id=job.session_id,
         session_code=job.session_code,
     )
+
+
+@app.get("/api/market-midi/resolve-artist", response_model=list[ArtistCandidate])
+async def resolve_artist(
+    q: str = Query(..., min_length=1, description="Texto digitado pelo usuário no step 3"),
+    limit: int = Query(5, ge=1, le=10),
+) -> list[ArtistCandidate]:
+    """Preview ao vivo pro step 3 do wizard — fuzzy match só de texto contra
+    o catálogo de artistas, sem tocar áudio/DTW."""
+    return await asyncio.to_thread(job_service.resolve_artist_candidates, q, limit=limit)
+
+
+@app.get("/api/sessions/{session_id}/music-identity", response_model=Optional[MusicIdentity])
+async def get_music_identity(session_id: str) -> Optional[MusicIdentity]:
+    """Retorna a identidade musical confirmada, se já existir — None é normal
+    (sessão criada antes do wizard, ou ainda no step 3), não é erro."""
+    session = await job_service.get_job(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail={"code": "SESSION_NOT_FOUND", "message": "Sessão não encontrada"})
+
+    return await asyncio.to_thread(job_service.get_music_identity, session_id)
+
+
+@app.put("/api/sessions/{session_id}/music-identity", response_model=MusicIdentity)
+async def save_music_identity(session_id: str, payload: MusicIdentityRequest) -> MusicIdentity:
+    session = await job_service.get_job(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail={"code": "SESSION_NOT_FOUND", "message": "Sessão não encontrada"})
+
+    return await asyncio.to_thread(job_service.save_music_identity, session_id, payload)
+
+
+@app.post("/api/sessions/{session_id}/confirm", response_model=ProcessResponse)
+async def confirm_session(session_id: str, background_tasks: BackgroundTasks) -> ProcessResponse:
+    """Confirma o wizard e dispara o pipeline de processamento — exige que a
+    sessão esteja em modo rascunho (queued) e que a identidade musical do
+    step 3 já tenha sido salva."""
+    job = await job_service.get_job(session_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail={"code": "SESSION_NOT_FOUND", "message": "Sessão não encontrada"})
+
+    if job.state != JobState.queued:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "ALREADY_CONFIRMED", "message": "Esta sessão já foi confirmada ou processada"},
+        )
+
+    identity = await asyncio.to_thread(job_service.get_music_identity, session_id)
+    if identity is None:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "MISSING_MUSIC_IDENTITY", "message": "Confirme artista/título antes de continuar"},
+        )
+
+    background_tasks.add_task(job_service.run_pipeline, session_id)
+    return ProcessResponse(job_id=job.job_id, session_id=job.session_id, session_code=job.session_code)
 
 
 @app.get("/api/sessions", response_model=SessionListResponse)
@@ -289,6 +356,19 @@ async def get_market_midi_status(session_id: str):
     if result is None:
         return MarketMidiMatchResult(status="not_indexed", applied=False, checked_at=datetime.utcnow())
     return result
+
+
+@app.post("/api/sessions/{session_id}/drum-analysis/market-midi", response_model=MarketMidiMatchResult)
+async def rematch_market_midi(session_id: str) -> MarketMidiMatchResult:
+    """Roda o casamento de MIDI de mercado de novo sob demanda — usado depois
+    que o usuário corrige artista/título de uma sessão já processada (ver
+    PUT .../music-identity). Não precisa reprocessar áudio: a análise de
+    bateria salva já é reaproveitada."""
+    session = await job_service.get_job(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail={"code": "SESSION_NOT_FOUND", "message": "Sessão não encontrada"})
+
+    return await job_service.match_market_midi(session_id)
 
 
 @app.post("/api/sessions/{session_id}/drum-analysis/corrections", response_model=DrumAnalysis)

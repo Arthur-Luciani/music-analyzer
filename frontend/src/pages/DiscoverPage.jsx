@@ -79,7 +79,7 @@ export default function DiscoverPage({
                 {searching ? "Buscando..." : "Buscar fontes"}
               </button>
               <button type="submit" className="btn btn-accent" disabled={loading}>
-                {processing ? "Processando..." : "Iniciar sessão"}
+                {processing ? "Criando rascunho..." : "Continuar"}
               </button>
             </div>
           </form>
@@ -180,7 +180,7 @@ export default function DiscoverPage({
                 </strong>
               </div>
             </div>
-            <p className="inline-note">Próximo passo: acompanhar separação em tempo real.</p>
+            <p className="inline-note">Próximo passo: confirmar artista e música.</p>
           </section>
 
           <section className="card animate-up" style={{ animationDelay: "170ms" }}>

@@ -8,6 +8,8 @@ from .manage_export import CreateExportUseCase, RunExportUseCase
 from .analyze_drum_stem import AnalyzeDrumStemUseCase
 from .save_drum_corrections import SaveDrumCorrectionsUseCase
 from .match_market_midi import MatchMarketMidiUseCase
+from .resolve_artist_candidates import ResolveArtistCandidatesUseCase
+from .save_music_identity import SaveMusicIdentityUseCase
 
 __all__ = [
     "SearchCandidatesUseCase",
@@ -22,4 +24,6 @@ __all__ = [
     "AnalyzeDrumStemUseCase",
     "SaveDrumCorrectionsUseCase",
     "MatchMarketMidiUseCase",
+    "ResolveArtistCandidatesUseCase",
+    "SaveMusicIdentityUseCase",
 ]

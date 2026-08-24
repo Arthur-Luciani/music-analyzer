@@ -39,6 +39,7 @@ export default function LibraryPage({
   onDuplicate,
   onReprocess,
   onDelete,
+  onResumeDraft,
   isProcessingStatus,
 }) {
   return (
@@ -66,7 +67,7 @@ export default function LibraryPage({
             onChange={(event) => onFilterChange("status", event.target.value)}
           >
             <option value="">Todos os estados</option>
-            <option value="queued">Na fila</option>
+            <option value="queued">Rascunho</option>
             <option value="downloading">Baixando</option>
             <option value="separating">Separando</option>
             <option value="ready">Pronta</option>
@@ -163,16 +164,28 @@ export default function LibraryPage({
                             </button>
                           )}
 
-                          {(isProcessingStatus(session.status) || session.status === "failed") && (
+                          {session.status === "queued" && (
                             <button
-                              className="btn btn-subtle"
+                              className="btn btn-accent"
                               type="button"
-                              onClick={() => onTrackSession(session.session_id)}
+                              onClick={() => onResumeDraft(session.session_id)}
                               disabled={rowIsBusy || loading}
                             >
-                              Acompanhar
+                              Continuar
                             </button>
                           )}
+
+                          {session.status !== "queued" &&
+                            (isProcessingStatus(session.status) || session.status === "failed") && (
+                              <button
+                                className="btn btn-subtle"
+                                type="button"
+                                onClick={() => onTrackSession(session.session_id)}
+                                disabled={rowIsBusy || loading}
+                              >
+                                Acompanhar
+                              </button>
+                            )}
 
                           <button
                             className="btn btn-subtle"

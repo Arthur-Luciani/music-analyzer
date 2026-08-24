@@ -1,13 +1,13 @@
-"""Normalização e fuzzy-matching de artista/título contra o índice local
-do MIDI de mercado (Lakh Clean MIDI subset).
+"""Normalização e fuzzy-matching de artista/título contra o catálogo de
+MIDI de mercado (Lakh Clean MIDI subset), indexado em `market_artists`/
+`market_tracks` (ver app/repositories/market_midi_repository.py).
 
 Sem I/O em `match_against_index`/`normalize_*` para manter essas funções
 facilmente testáveis; `load_index`/`find_best_match` são as únicas que
-tocam disco.
+tocam o banco.
 """
 from __future__ import annotations
 
-import json
 import logging
 import re
 import unicodedata
@@ -16,6 +16,7 @@ from typing import Optional
 
 from rapidfuzz import fuzz
 
+from app.repositories.market_midi_repository import CatalogEntry, MarketMidiRepository
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -82,50 +83,48 @@ def strip_leading_artist_prefix(title: Optional[str], artist: Optional[str]) -> 
     if not leading_norm or not artist_norm:
         return title
 
-    if fuzz.ratio(leading_norm, artist_norm) >= 80:
+    # token_set_ratio (not ratio) because the artist string is often a
+    # YouTube channel name with extra words tacked on ("Survivor Band",
+    # "Coldplay Music") that aren't covered by _ARTIST_CHANNEL_SUFFIX_RE —
+    # ratio penalizes the length mismatch and misses the prefix.
+    if fuzz.token_set_ratio(leading_norm, artist_norm) >= 80:
         return title[match.end():]
     return title
 
 
-@dataclass(frozen=True)
-class MarketMidiIndexEntry:
-    artist: str
-    title: str
-    artist_norm: str
-    title_norm: str
-    relative_path: str
+# Reexportado por conveniência — quem importa este módulo não precisa saber
+# que o índice mora no repositório de catálogo.
+MarketMidiIndexEntry = CatalogEntry
 
 
 @dataclass(frozen=True)
 class MarketMidiMatch:
+    artist_id: int
     artist: str
+    track_id: int
     title: str
-    relative_path: str
     score: float
 
 
-def load_index() -> list[MarketMidiIndexEntry]:
-    """Carrega o índice local. Nunca lança; retorna [] se o dataset
-    ainda não foi baixado/indexado (ver backend/scripts/setup_market_midi.py)."""
-    index_path = settings.market_midi_root / "index.json"
-    if not index_path.is_file():
-        return []
+def load_index(repository: Optional[MarketMidiRepository] = None) -> list[CatalogEntry]:
+    """Carrega o catálogo do banco. Nunca lança; retorna [] se o dataset
+    ainda não foi importado (ver backend/scripts/setup_market_midi.py)."""
+    repo = repository or MarketMidiRepository()
     try:
-        raw = json.loads(index_path.read_text(encoding="utf-8"))
-        return [MarketMidiIndexEntry(**item) for item in raw]
+        return repo.list_catalog_entries()
     except Exception as e:
-        logger.error(f"Failed to read market MIDI index at {index_path}: {e}")
+        logger.error(f"Failed to load market MIDI catalog: {e}")
         return []
 
 
 def match_against_index(
-    index: list[MarketMidiIndexEntry],
+    index: list[CatalogEntry],
     artist: Optional[str],
     title: Optional[str],
     *,
     threshold: Optional[float] = None,
 ) -> Optional[MarketMidiMatch]:
-    """Função pura (sem I/O) — recebe o índice já carregado."""
+    """Função pura (sem I/O) — recebe o catálogo (nível de track) já carregado."""
     if not index or not title:
         return None
 
@@ -162,9 +161,10 @@ def match_against_index(
         if combined > best_score:
             best_score = combined
             best = MarketMidiMatch(
+                artist_id=entry.artist_id,
                 artist=entry.artist,
+                track_id=entry.track_id,
                 title=entry.title,
-                relative_path=entry.relative_path,
                 score=combined,
             )
 
