@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import GrooveAnalyzer from '../components/GrooveAnalyzer';
 import SheetMusicView from '../components/SheetMusicView';
+import MusicIdentityEditPanel from '../components/MusicIdentityEditPanel';
 import './DrumInspectorPage.css';
 
 function getMarketMidiBadgeInfo(marketMidiStatus) {
@@ -48,7 +49,8 @@ export default function DrumInspectorPage({
   zoomLevel,
   onZoom,
   scrollRef,
-  onTriggerAnalysis
+  onTriggerAnalysis,
+  identityEdit,
 }) {
   const [viewMode, setViewMode] = React.useState('technical'); // technical | study
   const laneStackRef = useRef(null);
@@ -193,9 +195,30 @@ export default function DrumInspectorPage({
           <button className="btn-ui" onClick={onBack}>← VOLTAR AO MIXER</button>
           <div className="header-divider"></div>
           <h1>Drum Inspector: <span className="session-name">{session?.name}</span></h1>
-          <span className={`midi-source-badge ${midiBadge.className}`} title={midiBadge.title}>
-            {midiBadge.label}
-          </span>
+          <div className="midi-badge-wrap">
+            <span className={`midi-source-badge ${midiBadge.className}`} title={midiBadge.title}>
+              {midiBadge.label}
+            </span>
+            <button type="button" className="midi-edit-trigger" onClick={identityEdit.onToggle}>
+              Editar
+            </button>
+            {identityEdit.open && (
+              <MusicIdentityEditPanel
+                artistText={identityEdit.artistText}
+                titleText={identityEdit.titleText}
+                setTitleText={identityEdit.setTitleText}
+                onArtistTextChange={identityEdit.onArtistTextChange}
+                selectedArtistId={identityEdit.selectedArtistId}
+                suggestions={identityEdit.suggestions}
+                resolving={identityEdit.resolving}
+                pickSuggestion={identityEdit.pickSuggestion}
+                saving={identityEdit.saving}
+                error={identityEdit.error}
+                onSave={identityEdit.onSave}
+                onCancel={identityEdit.onToggle}
+              />
+            )}
+          </div>
         </div>
         
         <div className="header-right">

@@ -56,23 +56,49 @@ export function useMusicIdentity() {
     setSuggestions([]);
   }, []);
 
-  const confirm = useCallback(
+  // Só valida + persiste artista/título — usado tanto pelo confirm() do
+  // wizard quanto pela edição pós-processamento (que não confirma sessão
+  // nenhuma, só corrige e manda rebuscar o MIDI de mercado).
+  const persistIdentity = useCallback(
     async (sessionId) => {
-      setError("");
-
       if (!artistText.trim() || !titleText.trim()) {
         setError("Informe artista e música antes de confirmar");
         return false;
       }
+      await saveMusicIdentity(sessionId, {
+        artist_text: artistText.trim(),
+        title_text: titleText.trim(),
+        artist_id: selectedArtistId,
+        source_url: sourceUrl || null,
+      });
+      return true;
+    },
+    [artistText, titleText, selectedArtistId, sourceUrl]
+  );
 
+  const save = useCallback(
+    async (sessionId) => {
+      setError("");
       try {
         setConfirming(true);
-        await saveMusicIdentity(sessionId, {
-          artist_text: artistText.trim(),
-          title_text: titleText.trim(),
-          artist_id: selectedArtistId,
-          source_url: sourceUrl || null,
-        });
+        return await persistIdentity(sessionId);
+      } catch (err) {
+        setError(err.message || "Falha ao salvar identidade");
+        return false;
+      } finally {
+        setConfirming(false);
+      }
+    },
+    [persistIdentity]
+  );
+
+  const confirm = useCallback(
+    async (sessionId) => {
+      setError("");
+      try {
+        setConfirming(true);
+        const saved = await persistIdentity(sessionId);
+        if (!saved) return false;
         await confirmSession(sessionId);
         return true;
       } catch (err) {
@@ -82,7 +108,7 @@ export function useMusicIdentity() {
         setConfirming(false);
       }
     },
-    [artistText, titleText, selectedArtistId, sourceUrl]
+    [persistIdentity]
   );
 
   return {
@@ -99,6 +125,7 @@ export function useMusicIdentity() {
     initFrom,
     handleArtistTextChange,
     pickSuggestion,
+    save,
     confirm,
   };
 }

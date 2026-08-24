@@ -50,6 +50,11 @@ export async function resolveArtistCandidates(query, limit = 5) {
   return parseResponse(response);
 }
 
+export async function getMusicIdentity(sessionId) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/music-identity`);
+  return parseResponse(response);
+}
+
 export async function saveMusicIdentity(sessionId, payload) {
   const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/music-identity`, {
     method: "PUT",
@@ -193,6 +198,13 @@ export async function saveDrumCorrections(sessionId, hits) {
 
 export async function getMarketMidiStatus(sessionId) {
   const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/drum-analysis/market-midi`);
+  return parseResponse(response);
+}
+
+export async function rematchMarketMidi(sessionId) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/drum-analysis/market-midi`, {
+    method: "POST",
+  });
   return parseResponse(response);
 }
 
