@@ -21,6 +21,9 @@ export function getStateBadgeLabel(state) {
   if (state === "downloading") {
     return "Baixando";
   }
+  if (state === "queued") {
+    return "Rascunho";
+  }
   return "Na fila";
 }
 

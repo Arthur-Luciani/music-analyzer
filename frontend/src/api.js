@@ -43,6 +43,47 @@ export async function createProcessJob(query, selectedSourceId, targetStems) {
   return parseResponse(response);
 }
 
+export async function createDraftSession(query, selectedSourceId, targetStems) {
+  const payload = { query };
+  if (selectedSourceId) {
+    payload.selected_source_id = selectedSourceId;
+  }
+  if (Array.isArray(targetStems) && targetStems.length > 0) {
+    payload.target_stems = targetStems;
+  }
+
+  const response = await fetch("/api/sessions/draft", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse(response);
+}
+
+export async function resolveArtistCandidates(query, limit = 5) {
+  const response = await fetch(
+    `/api/market-midi/resolve-artist?q=${encodeURIComponent(query)}&limit=${encodeURIComponent(limit)}`
+  );
+  return parseResponse(response);
+}
+
+export async function saveMusicIdentity(sessionId, payload) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/music-identity`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse(response);
+}
+
+export async function confirmSession(sessionId) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/confirm`, {
+    method: "POST",
+  });
+  return parseResponse(response);
+}
+
 export async function listSessions(filters = {}) {
   const params = new URLSearchParams();
   if (filters.query) {

@@ -749,6 +749,28 @@ a {
   background: #272e38;
 }
 
+.identity-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: -4px;
+}
+
+.identity-suggestion-chip {
+  border: 1px solid #4d5765;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-body);
+  background: #272e38;
+  cursor: pointer;
+}
+
+.identity-suggestion-chip:hover {
+  border-color: var(--brand-2);
+  color: var(--text-strong);
+}
+
 .source-actions {
   display: grid;
   justify-items: end;
