@@ -23,6 +23,7 @@ from app.models import (
     SessionListResponse,
     DrumAnalysis,
     DrumCorrections,
+    MarketMidiMatchResult,
 )
 from app.use_cases.generate_drum_midi import GenerateDrumMidiUseCase
 from app.settings import settings
@@ -279,6 +280,17 @@ async def get_drum_analysis(session_id: str):
     return analysis
 
 
+@app.get("/api/sessions/{session_id}/drum-analysis/market-midi", response_model=MarketMidiMatchResult)
+async def get_market_midi_status(session_id: str):
+    """Retorna o resultado do casamento/alinhamento de MIDI de mercado, se já
+    tiver rodado. 'not_indexed' (sem aplicar nada ainda) é um estado normal,
+    não um erro — não retorna 404."""
+    result = await job_service.get_market_midi_status(session_id)
+    if result is None:
+        return MarketMidiMatchResult(status="not_indexed", applied=False, checked_at=datetime.utcnow())
+    return result
+
+
 @app.post("/api/sessions/{session_id}/drum-analysis/corrections", response_model=DrumAnalysis)
 async def post_drum_corrections(session_id: str, payload: DrumCorrections):
     """Salva correções manuais do usuário para a análise de bateria."""
@@ -351,14 +363,20 @@ async def get_job_stem_audio(job_id: str, stem_name: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Stem not found")
 
     raw_path = job.stems[stem_name]
-    # Se o caminho veio de um ambiente Docker (/app/storage/...), 
+    # Preferimos a localização canônica atual (settings.stems_root) — o
+    # caminho absoluto salvo em job.stems pode estar obsoleto se STORAGE_ROOT
+    # mudou de lugar desde que a sessão foi processada.
+    canonical_file = settings.stems_root / job_id / f"{stem_name}.mp3"
+    if canonical_file.is_file():
+        requested_file = canonical_file.resolve()
+    # Se o caminho veio de um ambiente Docker (/app/storage/...),
     # convertemos para o storage_root local.
-    if raw_path.startswith("/app/storage/"):
+    elif raw_path.startswith("/app/storage/"):
         relative_part = raw_path.replace("/app/storage/", "", 1)
         requested_file = (settings.storage_root / relative_part).resolve()
     else:
         requested_file = Path(raw_path).resolve()
-        
+
     storage_root = settings.storage_root.resolve()
 
     try:

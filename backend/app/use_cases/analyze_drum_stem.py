@@ -25,7 +25,13 @@ class AnalyzeDrumStemUseCase:
             return None
 
         raw_path = job.stems["drums"]
-        if raw_path.startswith("/app/storage/"):
+        # Preferimos a localização canônica atual (settings.stems_root) — o
+        # caminho absoluto salvo em job.stems pode estar obsoleto se
+        # STORAGE_ROOT mudou de lugar desde que a sessão foi processada.
+        canonical_path = settings.stems_root / session_id / "drums.mp3"
+        if canonical_path.is_file():
+            drum_stem_path = canonical_path
+        elif raw_path.startswith("/app/storage/"):
             # Converter caminho do Docker para local
             # /app/storage/stems/abc/drums.mp3 -> stems/abc/drums.mp3
             relative_part = raw_path.replace("/app/storage/", "", 1)
@@ -51,16 +57,30 @@ class AnalyzeDrumStemUseCase:
                 self._run_analysis, drum_stem_path, session_id
             )
             self._persist_analysis(session_id, analysis)
-            
+
+            # Tenta casar/alinhar um MIDI "de mercado" (rodado sequencialmente,
+            # não em background, para que drum_transcription.mid já esteja no
+            # estado final antes do evento de conclusão abaixo).
+            completion_message = "Análise técnica da bateria concluída com sucesso."
+            try:
+                market_result = await self._job_service.match_market_midi(session_id)
+                if market_result.applied:
+                    completion_message += (
+                        f" MIDI de mercado aplicado: {market_result.matched_artist} - "
+                        f"{market_result.matched_title}."
+                    )
+            except Exception as e:
+                logger.error(f"Market MIDI matching failed for {session_id}: {e}")
+
             # Adicionar evento de conclusão
             await self._job_service.add_session_event(
                 session_id,
                 stage="drum_analysis",
                 level="info",
-                message="Análise técnica da bateria concluída com sucesso.",
+                message=completion_message,
                 progress=100
             )
-            
+
             return analysis
         except Exception as e:
             logger.error(f"Drum analysis failed for {session_id}: {e}")
@@ -98,18 +118,12 @@ class AnalyzeDrumStemUseCase:
         pm = pretty_midi.PrettyMIDI(str(output_midi))
         
         # Mapeamento MIDI -> Tipo de peça do app
-        PITCH_MAP = {
-            35: "kick", 36: "kick",
-            38: "snare", 40: "snare",
-            42: "hihat", 44: "hihat", 46: "hihat",
-            45: "tom", 47: "tom", 48: "tom", 50: "tom",
-            49: "cymbal", 51: "cymbal", 52: "cymbal", 53: "cymbal", 55: "cymbal", 57: "cymbal"
-        }
+        from app.services.drum_pitch_map import GM_PITCH_TO_HIT_TYPE
 
         hits = []
         for instrument in pm.instruments:
             for note in instrument.notes:
-                hit_type = PITCH_MAP.get(note.pitch, "kick")
+                hit_type = GM_PITCH_TO_HIT_TYPE.get(note.pitch, "kick")
                 hits.append(DrumHit(
                     time=float(note.start),
                     type=hit_type,

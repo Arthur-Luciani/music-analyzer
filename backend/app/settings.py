@@ -20,6 +20,9 @@ class Settings:
     separation_shifts: int
     separation_target_stems: tuple[str, ...]
     torch_home: Path
+    market_midi_root: Path
+    market_midi_match_threshold: float
+    market_midi_alignment_max_cost: float
 
 
 def _read_float_env(name: str, default: float) -> float:
@@ -94,6 +97,7 @@ def load_settings() -> Settings:
     torch_home_default = storage_root / "cache" / "torch"
     sessions_db_default = storage_root / "sessions.db"
     exports_root_default = storage_root / "exports"
+    market_midi_root_default = storage_root / "market_midi"
 
 
     return Settings(
@@ -109,6 +113,9 @@ def load_settings() -> Settings:
         separation_shifts=_read_int_env("SEPARATION_SHIFTS", 1),
         separation_target_stems=_read_target_stems_env(),
         torch_home=Path(os.getenv("TORCH_HOME", str(torch_home_default))),
+        market_midi_root=Path(os.getenv("MARKET_MIDI_ROOT", str(market_midi_root_default))),
+        market_midi_match_threshold=_read_float_env("MARKET_MIDI_MATCH_THRESHOLD", 87.0),
+        market_midi_alignment_max_cost=_read_float_env("MARKET_MIDI_ALIGNMENT_MAX_COST", 0.35),
     )
 
 

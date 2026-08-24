@@ -12,6 +12,7 @@ from app.models.session import (
 )
 from app.models.export import ExportRequest, ExportArtifact, ExportJob
 from app.models.drum_analysis import DrumAnalysis, DrumHit, DrumCorrections
+from app.models.market_midi import MarketMidiMatchResult
 
 __all__ = [
     "ALLOWED_STEMS",
@@ -36,4 +37,5 @@ __all__ = [
     "DrumAnalysis",
     "DrumHit",
     "DrumCorrections",
+    "MarketMidiMatchResult",
 ]

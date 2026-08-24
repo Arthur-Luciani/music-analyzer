@@ -168,6 +168,15 @@ export async function saveDrumCorrections(sessionId, hits) {
   return parseResponse(response);
 }
 
+export async function getMarketMidiStatus(sessionId) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/drum-analysis/market-midi`);
+  return parseResponse(response);
+}
+
+export function getDrumMusicXmlUrl(sessionId) {
+  return `/api/sessions/${encodeURIComponent(sessionId)}/drum-analysis/drums.musicxml`;
+}
+
 export function connectJobSocket(jobId, onMessage, onError, onClose, onOpen) {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const socket = new WebSocket(`${protocol}//${window.location.host}/ws/${jobId}`);

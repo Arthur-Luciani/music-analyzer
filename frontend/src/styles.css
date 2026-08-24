@@ -71,6 +71,27 @@ a {
   max-width: 1560px;
 }
 
+/* Used by pages (currently just the Drum Inspector) that need a genuinely
+   viewport-bound layout so an internal region can scroll instead of the
+   whole document. .topbar and the page body become the only two flex
+   children; JobSidebar is position:fixed so it's unaffected. */
+.page-shell.viewport-clamped {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.page-shell.viewport-clamped > .topbar {
+  flex-shrink: 0;
+}
+
+.page-shell.viewport-clamped > .drum-inspector-layout {
+  flex: 1;
+  min-height: 0;
+}
+
 .topbar {
   background: rgba(26, 29, 33, 0.92);
   border: 1px solid var(--line);

@@ -19,12 +19,13 @@ export default function App() {
       workspace.fetchMixState(currentSession.job_id);
       workspace.fetchExports(currentSession.job_id);
       workspace.fetchDrumAnalysis(currentSession.job_id);
+      workspace.fetchMarketMidiStatus(currentSession.job_id);
     }
   }, [currentSession?.job_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <ProcessingProvider>
-      <main className={`page-shell ${currentPage === PAGES.workspace || currentPage === PAGES.drum_inspector ? "full-width" : ""}`}>
+      <main className={`page-shell ${currentPage === PAGES.workspace || currentPage === PAGES.drum_inspector ? "full-width" : ""} ${currentPage === PAGES.drum_inspector ? "viewport-clamped" : ""}`}>
         <header className="topbar">
           <button className="brand" onClick={() => setCurrentPage(PAGES.discover)}>
             <span className="brand-badge">MX</span>

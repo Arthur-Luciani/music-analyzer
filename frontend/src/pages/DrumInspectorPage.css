@@ -1,10 +1,21 @@
 .drum-inspector-layout {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   background-color: var(--bg-base);
   overflow: hidden;
   color: var(--text-strong);
+}
+
+/* Única região que rola verticalmente dentro do inspector — controles,
+   header e footer ficam sempre visíveis sem precisar de scroll. */
+.inspector-content-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .inspector-header {
@@ -45,6 +56,27 @@
   color: var(--accent);
 }
 
+.midi-source-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  cursor: default;
+}
+
+.midi-source-badge.market {
+  color: var(--good);
+  border-color: var(--good);
+  background: rgba(91, 161, 122, 0.1);
+}
+
+.midi-source-badge.generated {
+  color: var(--text-muted);
+}
+
 .btn-ui {
   background: #252a31;
   border: 1px solid var(--line);
@@ -79,6 +111,7 @@
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
+  cursor: pointer;
 }
 
 .timeline-content {
@@ -258,6 +291,67 @@
   color: var(--accent);
   font-weight: bold;
   margin-right: 4px;
+}
+
+/* Zoom + Speed controls */
+.view-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #20242a;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 4px 10px;
+}
+
+.zoom-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-strong);
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.zoom-btn:hover {
+  background: #323841;
+}
+
+.zoom-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.speed-control {
+  display: flex;
+  background: #20242a;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+  gap: 2px;
+}
+
+.speed-control .speed-btn {
+  padding: 6px 10px;
+  font-size: 10px;
+  border: none;
+  background: transparent;
+}
+
+.speed-control .speed-btn.active {
+  background: #323841;
+  color: #fff;
 }
 
 /* Mode Toggle */

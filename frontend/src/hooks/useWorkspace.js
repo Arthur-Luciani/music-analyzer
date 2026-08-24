@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { getMixState, updateMixState, createExportJob, listExportJobs, getDrumAnalysis, triggerDrumAnalysis, saveDrumCorrections as apiSaveDrumCorrections } from "../api";
+import { getMixState, updateMixState, createExportJob, listExportJobs, getDrumAnalysis, triggerDrumAnalysis, saveDrumCorrections as apiSaveDrumCorrections, getMarketMidiStatus } from "../api";
 
 const DEFAULT_MIX_LEVELS = {
   vocals: 72,
@@ -26,6 +26,10 @@ export function useWorkspace() {
   const [drumAnalysis, setDrumAnalysis] = useState(null);
   const [drumAnalysisLoading, setDrumAnalysisLoading] = useState(false);
   const [drumAnalysisError, setDrumAnalysisError] = useState("");
+
+  const [marketMidiStatus, setMarketMidiStatus] = useState(null);
+  const [marketMidiStatusLoading, setMarketMidiStatusLoading] = useState(false);
+  const [marketMidiStatusError, setMarketMidiStatusError] = useState("");
   
   const loadedMixSessionRef = useRef("");
   const lastPersistedMixRef = useRef("");
@@ -283,6 +287,21 @@ export function useWorkspace() {
     }
   };
 
+  const fetchMarketMidiStatus = async (sessionId) => {
+    if (!sessionId) return;
+    setMarketMidiStatusLoading(true);
+    setMarketMidiStatusError("");
+    try {
+      const data = await getMarketMidiStatus(sessionId);
+      setMarketMidiStatus(data);
+    } catch (err) {
+      setMarketMidiStatusError(err.message || "Falha ao carregar status do MIDI de mercado");
+      setMarketMidiStatus(null);
+    } finally {
+      setMarketMidiStatusLoading(false);
+    }
+  };
+
   const saveDrumCorrectionsAction = async (sessionId, hits) => {
     if (!sessionId) return;
     setDrumAnalysisLoading(true);
@@ -328,5 +347,9 @@ export function useWorkspace() {
     fetchDrumAnalysis,
     triggerDrumAnalysisAction,
     saveDrumCorrectionsAction,
+    marketMidiStatus,
+    marketMidiStatusLoading,
+    marketMidiStatusError,
+    fetchMarketMidiStatus,
   };
 }

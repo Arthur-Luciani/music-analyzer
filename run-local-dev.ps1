@@ -13,6 +13,7 @@ param(
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $backendStorageRoot = $StorageRoot
 $backendTorchHome = Join-Path $backendStorageRoot "cache\torch"
+$backendMarketMidiRoot = Join-Path $backendStorageRoot "market_midi"
 
 function Resolve-FfmpegBinaryPath {
     $ffmpegBin = Resolve-FfmpegBin
@@ -84,6 +85,7 @@ function Show-LocalRuntimeHints {
 
     Write-Host "Backend env: STORAGE_ROOT=$backendStorageRoot"
     Write-Host "Backend env: TORCH_HOME=$backendTorchHome"
+    Write-Host "Backend env: MARKET_MIDI_ROOT=$backendMarketMidiRoot"
     Write-Host "Backend env: SEPARATION_DEVICE=$SeparationDevice"
 }
 
@@ -95,6 +97,7 @@ function Start-Backend {
         }
         $env:STORAGE_ROOT = $backendStorageRoot
         $env:TORCH_HOME = $backendTorchHome
+        $env:MARKET_MIDI_ROOT = $backendMarketMidiRoot
         $env:SEPARATION_DEVICE = $SeparationDevice
         $ffmpegBinaryPath = Resolve-FfmpegBinaryPath
         if ($ffmpegBinaryPath) {
@@ -169,7 +172,7 @@ switch ($Target) {
         if ($InstallDeps) {
             $backendCommand += "pip install -r requirements.txt -r requirements.pipeline.txt; "
         }
-        $backendCommand += "`$env:STORAGE_ROOT='$backendStorageRoot'; `$env:TORCH_HOME='$backendTorchHome'; `$env:SEPARATION_DEVICE='$SeparationDevice';"
+        $backendCommand += "`$env:STORAGE_ROOT='$backendStorageRoot'; `$env:TORCH_HOME='$backendTorchHome'; `$env:MARKET_MIDI_ROOT='$backendMarketMidiRoot'; `$env:SEPARATION_DEVICE='$SeparationDevice';"
         if ($ffmpegBinaryPath) {
             $backendCommand += " `$env:FFMPEG_BINARY='$ffmpegBinaryPath';"
         }

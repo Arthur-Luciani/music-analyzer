@@ -1,6 +1,23 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import GrooveAnalyzer from '../components/GrooveAnalyzer';
+import SheetMusicView from '../components/SheetMusicView';
 import './DrumInspectorPage.css';
+
+function getMarketMidiBadgeInfo(marketMidiStatus) {
+  if (marketMidiStatus?.status === 'applied') {
+    const score = Math.round(marketMidiStatus.match_score || 0);
+    return {
+      label: 'MIDI: MERCADO',
+      className: 'market',
+      title: `${marketMidiStatus.matched_artist} — ${marketMidiStatus.matched_title} (${score}% de confiança)`,
+    };
+  }
+  return {
+    label: 'MIDI: GERADO (IA)',
+    className: 'generated',
+    title: 'Nenhum MIDI de mercado encontrado com confiança suficiente — usando a transcrição gerada pelo modelo.',
+  };
+}
 
 const LANES = [
   { id: 'cymbal', label: 'Pratos', color: '#78baaf' },
@@ -13,6 +30,7 @@ const LANES = [
 export default function DrumInspectorPage({
   session,
   analysis,
+  marketMidiStatus,
   editedHits,
   containerRef,
   isReady,
@@ -62,10 +80,21 @@ export default function DrumInspectorPage({
   // Loop de Sincronia de Alta Performance (Scrolling Timeline)
   useEffect(() => {
     let rafId;
+
+    // Reinicia a base da interpolação sempre que este loop (re)começa — sem
+    // isso, se o player ficar parado por alguns segundos (aberto no modo
+    // pause, ou logo após abrir o inspector) e o usuário der play, o próximo
+    // frame calcula um `dt` do tamanho de todo o tempo parado, faz o
+    // playhead saltar pra frente por 1-2 frames, e no frame seguinte
+    // "corrige" de volta pra posição real — visualmente parece a linha
+    // "ir pra trás e sumir".
+    latestTimeRef.current = currentTime;
+    lastUpdateRef.current = performance.now();
+
     const sync = () => {
       const now = performance.now();
       const dt = (now - lastUpdateRef.current) / 1000;
-      
+
       let interpolatedTime = latestTimeRef.current;
       if (isPlaying) {
         interpolatedTime += dt * (playbackSpeed || 1);
@@ -105,13 +134,27 @@ export default function DrumInspectorPage({
 
     rafId = requestAnimationFrame(sync);
     return () => cancelAnimationFrame(rafId);
-  }, [isPlaying, zoomPx, scrollRef, playbackSpeed]);
+    // currentTime é lido apenas para inicializar a base da interpolação no
+    // instante em que o loop (re)começa — não deve disparar um restart a
+    // cada frame (isso tornaria a interpolação inútil).
+  }, [isPlaying, zoomPx, scrollRef, playbackSpeed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sincroniza o scroll entre waveform e grid
   const handleScroll = (e) => {
     if (waveScrollRef.current && e.target === scrollRef.current) {
       waveScrollRef.current.scrollLeft = e.target.scrollLeft;
     }
+  };
+
+  // Clique na waveform de referência busca (seek) a mesma posição —
+  // mesma matemática (zoomPx, labelWidth 180px) usada pelo loop de sincronia acima.
+  const handleWaveformClick = (e) => {
+    const container = waveScrollRef.current;
+    if (!container) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left + container.scrollLeft;
+    const time = (clickX - 180) / zoomPx;
+    onSeek(Math.max(0, Math.min(duration, time)));
   };
 
   const renderMarkers = (laneId, color) => {
@@ -133,6 +176,8 @@ export default function DrumInspectorPage({
     ));
   };
 
+  const midiBadge = getMarketMidiBadgeInfo(marketMidiStatus);
+
   const formatClock = (seconds) => {
     const min = Math.floor(seconds / 60);
     const sec = Math.floor(seconds % 60);
@@ -148,9 +193,31 @@ export default function DrumInspectorPage({
           <button className="btn-ui" onClick={onBack}>← VOLTAR AO MIXER</button>
           <div className="header-divider"></div>
           <h1>Drum Inspector: <span className="session-name">{session?.name}</span></h1>
+          <span className={`midi-source-badge ${midiBadge.className}`} title={midiBadge.title}>
+            {midiBadge.label}
+          </span>
         </div>
         
         <div className="header-right">
+          <div className="view-controls">
+            <div className="zoom-control">
+              <button className="zoom-btn" onClick={() => onZoom(Math.max(5, zoomLevel - 5))} title="Diminuir zoom">−</button>
+              <span className="zoom-label">ZOOM</span>
+              <button className="zoom-btn" onClick={() => onZoom(Math.min(80, zoomLevel + 5))} title="Aumentar zoom">+</button>
+            </div>
+            <div className="speed-control">
+              {[0.5, 1, 1.5, 2].map((speed) => (
+                <button
+                  key={speed}
+                  className={`pill-btn speed-btn ${playbackSpeed === speed ? 'active' : ''}`}
+                  onClick={() => setPlaybackSpeed(speed)}
+                >
+                  {speed}x
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="header-divider"></div>
           <div className="mode-toggle">
             <button 
               className={`pill-btn ${viewMode === 'technical' ? 'active' : ''}`}
@@ -158,11 +225,17 @@ export default function DrumInspectorPage({
             >
               INSPETOR TÉCNICO
             </button>
-            <button 
+            <button
               className={`pill-btn ${viewMode === 'study' ? 'active' : ''}`}
               onClick={() => setViewMode('study')}
             >
               MODO DE ESTUDO
+            </button>
+            <button
+              className={`pill-btn ${viewMode === 'score' ? 'active' : ''}`}
+              onClick={() => setViewMode('score')}
+            >
+              PARTITURA
             </button>
           </div>
           <div className="header-divider"></div>
@@ -176,78 +249,13 @@ export default function DrumInspectorPage({
         </div>
       </header>
 
-      {viewMode === 'technical' ? (
-        <>
-          {/* Onda de Referência (Waveform Master) */}
-          <section 
-            className="master-wave-wrap scroll-container" 
-            ref={waveScrollRef}
-            style={{ overflow: 'hidden', pointerEvents: 'none' }}
-          >
-            <div className="playhead" id="ph-top" ref={phTopRef} style={{ height: '100%', display: 'none' }}></div>
-            <div className="timeline-content" style={{ width: `${duration * zoomPx + 200}px` }}>
-              <div className="waveform-container" ref={containerRef}></div>
-            </div>
-          </section>
-
-          {/* Grid de Edição Técnica */}
-          <main className="drum-grid">
-            <div 
-              className="grid-scroll-area" 
-              ref={scrollRef} 
-              onScroll={handleScroll}
-              style={{ position: 'relative' }}
-            >
-              <div 
-                className="playhead" 
-                id="ph-grid" 
-                ref={phGridRef}
-                style={{ height: '100%', display: 'none' }}
-              ></div>
-
-              <div className="timeline-content" style={{ width: `${duration * zoomPx + 200}px` }}>
-                <div className="ruler">
-                  {Array.from({ length: Math.ceil(duration / 5) }).map((_, i) => (
-                    <div key={i} className="ruler-mark" style={{ left: `${i * 5 * zoomPx + 180}px` }}>
-                      00:{String(i * 5).padStart(2, '0')}:00
-                    </div>
-                  ))}
-                </div>
-
-                <div id="lane-stack" ref={laneStackRef}>
-                  {LANES.map(lane => (
-                    <div key={lane.id} className="lane">
-                      <div className="label" style={{ borderRight: `4px solid ${lane.color}` }}>
-                        {lane.label}
-                      </div>
-                      <div className="lane-hit-area">
-                        {renderMarkers(lane.id, lane.color)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </main>
-        </>
-      ) : (
-        <main className="study-mode-content" style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
-          <GrooveAnalyzer 
-            patterns={analysis?.patterns || []} 
-            bpm={analysis?.bpm || 120} 
-            onTriggerAnalysis={onTriggerAnalysis}
-            sessionId={session?.session_id}
-          />
-        </main>
-      )}
-
-      {/* 2. Control Dashboard (Padrao do Estúdio) */}
+      {/* 2. Control Dashboard (Padrao do Estúdio) — logo após o header, sempre visível sem scroll */}
       <section className="control-dashboard">
         <div className="dashboard-group">
           <button className="btn-transport" onClick={() => onSeek(0)}>|&lt;</button>
           <button className="btn-transport" onClick={() => onSeek(currentTime - 5)}>-5s</button>
-          <button 
-            className="btn-transport play" 
+          <button
+            className="btn-transport play"
             onClick={onTogglePlay}
           >
             {isPlaying ? "PAUSAR" : "REPRODUZIR"}
@@ -267,6 +275,82 @@ export default function DrumInspectorPage({
           </div>
         </div>
       </section>
+
+      {/* Única região que rola verticalmente — controles/header/footer ficam sempre visíveis */}
+      <div className="inspector-content-area">
+        {viewMode === 'technical' ? (
+          <>
+            {/* Onda de Referência (Waveform Master) */}
+            <section
+              className="master-wave-wrap scroll-container"
+              ref={waveScrollRef}
+              style={{ overflow: 'hidden' }}
+              onClick={handleWaveformClick}
+            >
+              <div className="playhead" id="ph-top" ref={phTopRef} style={{ height: '100%' }}></div>
+              <div className="timeline-content" style={{ width: `${duration * zoomPx + 200}px` }}>
+                <div className="waveform-container" ref={containerRef}></div>
+              </div>
+            </section>
+
+            {/* Grid de Edição Técnica */}
+            <main className="drum-grid">
+              <div
+                className="grid-scroll-area"
+                ref={scrollRef}
+                onScroll={handleScroll}
+                style={{ position: 'relative' }}
+              >
+                <div
+                  className="playhead"
+                  id="ph-grid"
+                  ref={phGridRef}
+                  style={{ height: '100%' }}
+                ></div>
+
+                <div className="timeline-content" style={{ width: `${duration * zoomPx + 200}px` }}>
+                  <div className="ruler">
+                    {Array.from({ length: Math.ceil(duration / 5) }).map((_, i) => (
+                      <div key={i} className="ruler-mark" style={{ left: `${i * 5 * zoomPx + 180}px` }}>
+                        00:{String(i * 5).padStart(2, '0')}:00
+                      </div>
+                    ))}
+                  </div>
+
+                  <div id="lane-stack" ref={laneStackRef}>
+                    {LANES.map(lane => (
+                      <div key={lane.id} className="lane">
+                        <div className="label" style={{ borderRight: `4px solid ${lane.color}` }}>
+                          {lane.label}
+                        </div>
+                        <div className="lane-hit-area">
+                          {renderMarkers(lane.id, lane.color)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </main>
+          </>
+        ) : viewMode === 'study' ? (
+          <main className="study-mode-content" style={{ padding: '24px' }}>
+            <GrooveAnalyzer
+              patterns={analysis?.patterns || []}
+              bpm={analysis?.bpm || 120}
+              onTriggerAnalysis={onTriggerAnalysis}
+              sessionId={session?.session_id}
+            />
+          </main>
+        ) : (
+          <SheetMusicView
+            sessionId={session?.session_id}
+            bpm={analysis?.bpm || 120}
+            currentTime={currentTime}
+            onSeek={onSeek}
+          />
+        )}
+      </div>
 
       {/* Painel de Atalhos */}
       <footer className="inspector-footer-pro">

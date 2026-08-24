@@ -20,6 +20,7 @@ from app.models import (
     StemMixState,
     DrumAnalysis,
     DrumCorrections,
+    MarketMidiMatchResult,
 )
 from app.repositories.session_repository import SessionRepository
 
@@ -49,6 +50,7 @@ class JobService:
                 RunExportUseCase,
                 AnalyzeDrumStemUseCase,
                 SaveDrumCorrectionsUseCase,
+                MatchMarketMidiUseCase,
             )
 
             self._search_use_case = SearchCandidatesUseCase(self)
@@ -62,6 +64,7 @@ class JobService:
             self._run_export_use_case = RunExportUseCase(self)
             self._analyze_drum_use_case = AnalyzeDrumStemUseCase(self)
             self._save_drum_corrections_use_case = SaveDrumCorrectionsUseCase(self)
+            self._match_market_midi_use_case = MatchMarketMidiUseCase(self)
         except Exception as e:
             logger.error(f"Failed to load use cases: {e}")
 
@@ -279,6 +282,13 @@ class JobService:
 
     async def save_drum_corrections(self, session_id: str, corrections: DrumCorrections) -> Optional[DrumAnalysis]:
         return await self._save_drum_corrections_use_case.execute(session_id, corrections)
+
+    async def match_market_midi(self, session_id: str) -> MarketMidiMatchResult:
+        return await self._match_market_midi_use_case.execute(session_id)
+
+    async def get_market_midi_status(self, session_id: str) -> Optional[MarketMidiMatchResult]:
+        from app.use_cases import MatchMarketMidiUseCase
+        return MatchMarketMidiUseCase.load_saved_result(session_id)
 
     async def clear_session_data(self, session_id: str) -> None:
         """Clears associated data (events, exports, stems) but keeps the session."""

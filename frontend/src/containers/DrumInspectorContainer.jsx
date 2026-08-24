@@ -5,13 +5,14 @@ import { getStemAudioUrl } from "../api";
 import { useWebAudioMixer } from "../hooks/useWebAudioMixer";
 
 export default function DrumInspectorContainer({ session, workspace, onBack }) {
-  const { 
-    drumAnalysis, 
-    saveDrumCorrectionsAction, 
-    mixLevels, 
-    soloStem, 
-    mutedStems, 
-    panLevels 
+  const {
+    drumAnalysis,
+    saveDrumCorrectionsAction,
+    mixLevels,
+    soloStem,
+    mutedStems,
+    panLevels,
+    marketMidiStatus,
   } = workspace;
   
   const [wavesurfer, setWavesurfer] = useState(null);
@@ -80,6 +81,13 @@ export default function DrumInspectorContainer({ session, workspace, onBack }) {
       responsive: true,
       fillParent: true,
       interact: false,
+      // O wavesurfer tem seu próprio auto-scroll/auto-center interno (ligado
+      // por padrão) que compete com o scroll manual que já sincronizamos em
+      // DrumInspectorPage.jsx — os dois brigando pelo mesmo espaço causava o
+      // cursor indo "para trás" com o tempo. Desligamos o dele, já que o
+      // nosso próprio loop já mantém waveform e grid sincronizados.
+      autoScroll: false,
+      autoCenter: false,
     });
 
     const audioUrl = getStemAudioUrl(session.job_id, "drums");
@@ -122,23 +130,6 @@ export default function DrumInspectorContainer({ session, workspace, onBack }) {
       wavesurfer.zoom(zoomLevel);
     }
   }, [wavesurfer, zoomLevel]);
-
-  // Auto-scroll logic: keep cursor in view
-  useEffect(() => {
-    if (!scrollRef.current || !isReady) return;
-
-    const container = scrollRef.current;
-    const cursorPosition = currentTime * zoomLevel + 80;
-    const scrollLeft = container.scrollLeft;
-    const width = container.clientWidth;
-
-    const margin = width * 0.2;
-    if (cursorPosition > scrollLeft + width - margin) {
-      container.scrollLeft = cursorPosition - width + margin;
-    } else if (cursorPosition < scrollLeft + margin) {
-      container.scrollLeft = Math.max(0, cursorPosition - margin);
-    }
-  }, [currentTime, zoomLevel, isReady]);
 
   // Auto-select nearest hit when seeking/playing
   useEffect(() => {
@@ -223,6 +214,7 @@ export default function DrumInspectorContainer({ session, workspace, onBack }) {
       <DrumInspectorPage
         session={session}
         analysis={drumAnalysis}
+        marketMidiStatus={marketMidiStatus}
         editedHits={editedHits}
         containerRef={containerRef}
         isReady={isReady}
