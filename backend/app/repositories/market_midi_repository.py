@@ -31,6 +31,13 @@ class MidiFileEntry:
     duration_seconds: Optional[float]
 
 
+@dataclass(frozen=True)
+class ArtistEntry:
+    id: int
+    name: str
+    name_norm: str
+
+
 class MarketMidiRepository:
     """ORM-backed repository para o catálogo de MIDI de mercado
     (market_artists -> market_tracks -> market_midi_files, N:1 em cada seta)."""
@@ -136,6 +143,16 @@ class MarketMidiRepository:
         except Exception:
             session.rollback()
             raise
+        finally:
+            if close_after:
+                session.close()
+
+    def list_all_artists(self) -> list[ArtistEntry]:
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            rows = session.query(MarketArtistORM).all()
+            return [ArtistEntry(id=row.id, name=row.name, name_norm=row.name_norm) for row in rows]
         finally:
             if close_after:
                 session.close()

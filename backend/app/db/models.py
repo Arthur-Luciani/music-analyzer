@@ -144,3 +144,26 @@ class MarketMidiFileORM(Base):
 	__table_args__ = (
 		Index("idx_market_midi_files_track_id", "track_id"),
 	)
+
+
+class SessionMusicIdentityORM(Base):
+	"""Identidade musical confirmada pelo usuário pra uma sessão (1:1),
+	separada do snapshot original da busca (`SessionORM.selected_track_json`)
+	pra manter rastreabilidade — ver wizard de criação de sessão.
+
+	`artist_id` é resolvido cedo (step 3, só texto). `track_id`/
+	`resolved_midi_file_id` só ficam preenchidos depois, quando a análise de
+	bateria roda e o DTW consegue confirmar qual arquivo MIDI é o certo
+	(ver match_market_midi.py)."""
+	__tablename__ = "session_music_identity"
+
+	session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), primary_key=True)
+	artist_id = Column(Integer, ForeignKey("market_artists.id"), nullable=True)
+	artist_text = Column(String, nullable=False)
+	title_text = Column(String, nullable=False)
+	source_url = Column(String, nullable=True)
+	track_id = Column(Integer, ForeignKey("market_tracks.id"), nullable=True)
+	resolved_midi_file_id = Column(Integer, ForeignKey("market_midi_files.id"), nullable=True)
+	resolved_at = Column(DateTime, nullable=True)
+	created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+	updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

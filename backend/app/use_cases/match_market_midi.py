@@ -6,6 +6,7 @@ from typing import Optional
 
 from app.models.market_midi import MarketMidiMatchResult
 from app.repositories.market_midi_repository import MarketMidiRepository, MidiFileEntry
+from app.repositories.session_music_identity_repository import SessionMusicIdentityRepository
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 class MatchMarketMidiUseCase:
     _job_service: object
     _repository: Optional[MarketMidiRepository] = None
+    _identity_repository: Optional[SessionMusicIdentityRepository] = None
 
     async def execute(self, session_id: str) -> MarketMidiMatchResult:
         """Tenta casar e alinhar um MIDI 'de mercado' para a sessão. Roda de
@@ -47,9 +49,10 @@ class MatchMarketMidiUseCase:
     def _run_sync_unsafe(
         self, session_id: str, artist: Optional[str], title: Optional[str], now: datetime
     ) -> MarketMidiMatchResult:
-        from app.services.market_midi_matcher import load_index, match_against_index
+        from app.services.market_midi_matcher import load_index, match_against_index, normalize_title
 
         repo = self._repository or MarketMidiRepository()
+        identity_repo = self._identity_repository or SessionMusicIdentityRepository()
 
         index = load_index(repo)
         if not index:
@@ -61,12 +64,34 @@ class MatchMarketMidiUseCase:
             logger.warning(f"No reference drum analysis for session {session_id}; skipping market MIDI match")
             return MarketMidiMatchResult(status="no_match", checked_at=now)
 
-        best_match = match_against_index(index, artist, title)
-        if best_match is None:
-            return MarketMidiMatchResult(status="no_match", checked_at=now)
+        # Sessões que passaram pelo wizard já têm o artista resolvido por ID
+        # (session_music_identity) — nesse caso não refazemos o fuzzy match de
+        # artista, só escopamos o catálogo pra esse artista e casamos o título.
+        # Sessões antigas (sem identidade salva) caem no comportamento de
+        # sempre: fuzzy de artista + título no catálogo inteiro.
+        identity = identity_repo.get(session_id)
+        if identity is not None and identity.artist_id is not None:
+            scoped_index = [entry for entry in index if entry.artist_id == identity.artist_id]
+            best_match = match_against_index(scoped_index, None, identity.title_text)
+            if best_match is None:
+                # Nenhuma música desse artista bate com o título digitado —
+                # cria a música no catálogo (sem arquivo) pra ficar resolvida
+                # e não perder a tentativa; MIDI gerado pelo ADTOF permanece.
+                track_id = repo.get_or_create_track(
+                    identity.artist_id,
+                    identity.title_text,
+                    normalize_title(identity.title_text),
+                    source="user_created",
+                )
+                identity_repo.set_resolution(session_id, track_id=track_id, resolved_midi_file_id=None, resolved_at=now)
+                return MarketMidiMatchResult(status="no_match", matched_artist=identity.artist_text, checked_at=now)
+        else:
+            best_match = match_against_index(index, artist, title)
+            if best_match is None:
+                return MarketMidiMatchResult(status="no_match", checked_at=now)
 
         candidate_files = repo.list_files_for_track(best_match.track_id)
-        return self._try_candidate_files(
+        result, winner_file_id = self._try_candidate_files(
             session_id=session_id,
             repo=repo,
             candidate_files=candidate_files,
@@ -78,6 +103,13 @@ class MatchMarketMidiUseCase:
             bpm=analysis.bpm if analysis.bpm > 0 else 120.0,
             now=now,
         )
+
+        if identity is not None and identity.artist_id is not None:
+            identity_repo.set_resolution(
+                session_id, track_id=best_match.track_id, resolved_midi_file_id=winner_file_id, resolved_at=now
+            )
+
+        return result
 
     def _try_candidate_files(
         self,
@@ -92,11 +124,13 @@ class MatchMarketMidiUseCase:
         ref_hits: list[tuple],
         bpm: float,
         now: datetime,
-    ) -> MarketMidiMatchResult:
+    ) -> tuple[MarketMidiMatchResult, Optional[int]]:
         """Uma track pode ter N arquivos MIDI candidatos (variações do mesmo
         dataset) — tenta o alinhamento DTW em cada um e fica com o de maior
         confiança. Arquivos já sabidamente ruins (`has_drum_track=False`,
-        cacheado de uma tentativa anterior) são pulados sem reabrir o arquivo."""
+        cacheado de uma tentativa anterior) são pulados sem reabrir o arquivo.
+        Retorna o resultado e o id do arquivo vencedor (None se nenhum foi
+        aplicado) — quem chama decide se/como persistir isso."""
         import pretty_midi
         from app.services.market_midi_alignment import (
             build_onset_density_features,
@@ -116,7 +150,7 @@ class MatchMarketMidiUseCase:
 
         ref_features = build_onset_density_features(ref_hits, ref_duration)
 
-        winner = None  # (alignment, candidate_pm)
+        winner = None  # (alignment, candidate_pm, file_id)
         best_attempt = None  # (alignment,) — melhor tentativa que rodou DTW mas não passou no gate
         any_readable = False
 
@@ -152,12 +186,12 @@ class MatchMarketMidiUseCase:
 
             if is_alignment_confident(alignment):
                 if winner is None or alignment.normalized_cost < winner[0].normalized_cost:
-                    winner = (alignment, candidate_pm)
+                    winner = (alignment, candidate_pm, file_entry.id)
             elif best_attempt is None or alignment.normalized_cost < best_attempt[0].normalized_cost:
                 best_attempt = (alignment,)
 
         if winner is not None:
-            alignment, candidate_pm = winner
+            alignment, candidate_pm, winner_file_id = winner
             warped = warp_midi(candidate_pm, alignment.mapping_fn, ref_duration, bpm)
 
             output_path = settings.stems_root / session_id / "drum_transcription.mid"
@@ -171,7 +205,7 @@ class MatchMarketMidiUseCase:
                 alignment_coverage=alignment.coverage_ratio,
                 applied=True,
                 **base_result_kwargs,
-            )
+            ), winner_file_id
 
         if best_attempt is not None:
             alignment, = best_attempt
@@ -180,14 +214,14 @@ class MatchMarketMidiUseCase:
                 alignment_cost=alignment.normalized_cost,
                 alignment_coverage=alignment.coverage_ratio,
                 **base_result_kwargs,
-            )
+            ), None
 
         if any_readable:
             # Pelo menos um arquivo tinha trilha de bateria, mas nenhum passou
             # nem a checagem de duração (rejeitado antes do DTW rodar).
-            return MarketMidiMatchResult(status="low_confidence", **base_result_kwargs)
+            return MarketMidiMatchResult(status="low_confidence", **base_result_kwargs), None
 
-        return MarketMidiMatchResult(status="candidate_unreadable", **base_result_kwargs)
+        return MarketMidiMatchResult(status="candidate_unreadable", **base_result_kwargs), None
 
     @staticmethod
     def _persist_result(session_id: str, result: MarketMidiMatchResult) -> None:
