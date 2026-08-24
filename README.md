@@ -99,10 +99,13 @@ Servicos:
 
 ## API MVP
 
-- `POST /api/process`
-  - body: `{ "query": "artist + song", "target_stems": ["vocals", "drums"] }`
-  - resposta: `{ "job_id": "..." }`
-- `GET /api/jobs/{job_id}`
+- `POST /api/sessions/draft`
+  - body: `{ "query": "artist + song", "selected_source_id": "...", "target_stems": ["vocals", "drums"] }`
+  - resposta: `{ "job_id": "...", "session_id": "...", "session_code": "..." }`
+  - cria a sessao em estado `queued` sem iniciar o processamento
+- `PUT /api/sessions/{session_id}/music-identity` — confirma/corrige artista e titulo
+- `POST /api/sessions/{session_id}/confirm` — inicia o processamento de fato
+- `GET /api/sessions/{session_id}`
 - `WS /ws/{job_id}`
 
 ## Teste rapido de fluxo
