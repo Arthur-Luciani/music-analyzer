@@ -52,6 +52,14 @@ def test_strip_leading_artist_prefix_keeps_title_when_dash_is_mid_title():
     assert strip_leading_artist_prefix(title, "Nirvana") == title
 
 
+def test_strip_leading_artist_prefix_handles_channel_name_with_extra_word():
+    # Regression: artist is a YouTube channel name ("Survivor Band") rather
+    # than the bare artist ("Survivor"). fuzz.ratio penalizes the length
+    # mismatch and misses the prefix; token_set_ratio doesn't.
+    title = "Survivor - Eye Of The Tiger (Official HD Video)"
+    assert strip_leading_artist_prefix(title, "Survivor Band") == "Eye Of The Tiger (Official HD Video)"
+
+
 def _index() -> list[MarketMidiIndexEntry]:
     def entry(artist: str, title: str, path: str) -> MarketMidiIndexEntry:
         return MarketMidiIndexEntry(
@@ -114,5 +122,14 @@ def test_match_against_index_handles_title_repeating_artist():
     # Regression: a YouTube-style "Artist - Song" title (the artist word
     # duplicated in the title) dragged the title score below threshold.
     match = match_against_index(_index(), "Supertramp", "Supertramp - Goodbye Stranger (Official Video)")
+    assert match is not None
+    assert match.relative_path == "Supertramp/Goodbye Stranger.mid"
+
+
+def test_match_against_index_handles_title_repeating_channel_name():
+    # Regression: same as above, but the uploader's channel name tacks an
+    # extra word onto the artist ("Supertramp Band"), which used to prevent
+    # the duplicated-artist prefix from being stripped from the title.
+    match = match_against_index(_index(), "Supertramp Band", "Supertramp - Goodbye Stranger (Official Video)")
     assert match is not None
     assert match.relative_path == "Supertramp/Goodbye Stranger.mid"

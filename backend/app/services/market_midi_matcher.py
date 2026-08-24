@@ -82,7 +82,11 @@ def strip_leading_artist_prefix(title: Optional[str], artist: Optional[str]) -> 
     if not leading_norm or not artist_norm:
         return title
 
-    if fuzz.ratio(leading_norm, artist_norm) >= 80:
+    # token_set_ratio (not ratio) because the artist string is often a
+    # YouTube channel name with extra words tacked on ("Survivor Band",
+    # "Coldplay Music") that aren't covered by _ARTIST_CHANNEL_SUFFIX_RE —
+    # ratio penalizes the length mismatch and misses the prefix.
+    if fuzz.token_set_ratio(leading_norm, artist_norm) >= 80:
         return title[match.end():]
     return title
 
