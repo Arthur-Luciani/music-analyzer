@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional
 
 from app.models.market_midi import MarketMidiMatchResult
+from app.repositories.market_midi_repository import MarketMidiRepository, MidiFileEntry
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MatchMarketMidiUseCase:
     _job_service: object
+    _repository: Optional[MarketMidiRepository] = None
 
     async def execute(self, session_id: str) -> MarketMidiMatchResult:
         """Tenta casar e alinhar um MIDI 'de mercado' para a sessão. Roda de
@@ -47,7 +49,9 @@ class MatchMarketMidiUseCase:
     ) -> MarketMidiMatchResult:
         from app.services.market_midi_matcher import load_index, match_against_index
 
-        index = load_index()
+        repo = self._repository or MarketMidiRepository()
+
+        index = load_index(repo)
         if not index:
             return MarketMidiMatchResult(status="not_indexed", checked_at=now)
 
@@ -61,20 +65,39 @@ class MatchMarketMidiUseCase:
         if best_match is None:
             return MarketMidiMatchResult(status="no_match", checked_at=now)
 
-        candidate_path = settings.market_midi_root / best_match.relative_path
-        try:
-            import pretty_midi
-            candidate_pm = pretty_midi.PrettyMIDI(str(candidate_path))
-        except Exception as e:
-            logger.warning(f"Could not read candidate market MIDI {candidate_path}: {e}")
-            return MarketMidiMatchResult(
-                status="candidate_unreadable",
-                matched_artist=best_match.artist,
-                matched_title=best_match.title,
-                match_score=best_match.score,
-                checked_at=now,
-            )
+        candidate_files = repo.list_files_for_track(best_match.track_id)
+        return self._try_candidate_files(
+            session_id=session_id,
+            repo=repo,
+            candidate_files=candidate_files,
+            matched_artist=best_match.artist,
+            matched_title=best_match.title,
+            match_score=best_match.score,
+            ref_duration=analysis.duration_seconds,
+            ref_hits=[(hit.time, hit.type) for hit in analysis.hits],
+            bpm=analysis.bpm if analysis.bpm > 0 else 120.0,
+            now=now,
+        )
 
+    def _try_candidate_files(
+        self,
+        *,
+        session_id: str,
+        repo: MarketMidiRepository,
+        candidate_files: list[MidiFileEntry],
+        matched_artist: str,
+        matched_title: str,
+        match_score: float,
+        ref_duration: float,
+        ref_hits: list[tuple],
+        bpm: float,
+        now: datetime,
+    ) -> MarketMidiMatchResult:
+        """Uma track pode ter N arquivos MIDI candidatos (variações do mesmo
+        dataset) — tenta o alinhamento DTW em cada um e fica com o de maior
+        confiança. Arquivos já sabidamente ruins (`has_drum_track=False`,
+        cacheado de uma tentativa anterior) são pulados sem reabrir o arquivo."""
+        import pretty_midi
         from app.services.market_midi_alignment import (
             build_onset_density_features,
             compute_dtw_alignment,
@@ -84,66 +107,87 @@ class MatchMarketMidiUseCase:
             warp_midi,
         )
 
-        candidate_events = extract_drum_note_events(candidate_pm)
-        if not candidate_events:
-            logger.warning(f"Candidate market MIDI {candidate_path} has no drum track")
-            return MarketMidiMatchResult(
-                status="candidate_unreadable",
-                matched_artist=best_match.artist,
-                matched_title=best_match.title,
-                match_score=best_match.score,
-                checked_at=now,
-            )
-
-        ref_duration = analysis.duration_seconds
-        cand_duration = candidate_pm.get_end_time()
-
-        if not is_duration_compatible(ref_duration, cand_duration):
-            return MarketMidiMatchResult(
-                status="low_confidence",
-                matched_artist=best_match.artist,
-                matched_title=best_match.title,
-                match_score=best_match.score,
-                checked_at=now,
-            )
-
-        ref_hits = [(hit.time, hit.type) for hit in analysis.hits]
-        cand_hits = [(event.start, event.hit_type) for event in candidate_events]
-
-        ref_features = build_onset_density_features(ref_hits, ref_duration)
-        cand_features = build_onset_density_features(cand_hits, cand_duration)
-
-        alignment = compute_dtw_alignment(ref_features, cand_features)
-
-        if not is_alignment_confident(alignment):
-            return MarketMidiMatchResult(
-                status="low_confidence",
-                matched_artist=best_match.artist,
-                matched_title=best_match.title,
-                match_score=best_match.score,
-                alignment_cost=alignment.normalized_cost,
-                alignment_coverage=alignment.coverage_ratio,
-                checked_at=now,
-            )
-
-        bpm = analysis.bpm if analysis.bpm > 0 else 120.0
-        warped = warp_midi(candidate_pm, alignment.mapping_fn, ref_duration, bpm)
-
-        output_path = settings.stems_root / session_id / "drum_transcription.mid"
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        warped.write(str(output_path))
-        logger.info(f"Applied market MIDI for session {session_id}: {best_match.artist} - {best_match.title}")
-
-        return MarketMidiMatchResult(
-            status="applied",
-            matched_artist=best_match.artist,
-            matched_title=best_match.title,
-            match_score=best_match.score,
-            alignment_cost=alignment.normalized_cost,
-            alignment_coverage=alignment.coverage_ratio,
-            applied=True,
+        base_result_kwargs = dict(
+            matched_artist=matched_artist,
+            matched_title=matched_title,
+            match_score=match_score,
             checked_at=now,
         )
+
+        ref_features = build_onset_density_features(ref_hits, ref_duration)
+
+        winner = None  # (alignment, candidate_pm)
+        best_attempt = None  # (alignment,) — melhor tentativa que rodou DTW mas não passou no gate
+        any_readable = False
+
+        for file_entry in candidate_files:
+            if file_entry.has_drum_track is False:
+                continue
+
+            candidate_path = settings.market_midi_root / file_entry.relative_path
+            try:
+                candidate_pm = pretty_midi.PrettyMIDI(str(candidate_path))
+                candidate_events = extract_drum_note_events(candidate_pm)
+            except Exception as e:
+                logger.warning(f"Could not read candidate market MIDI {candidate_path}: {e}")
+                repo.update_file_probe_result(file_entry.id, has_drum_track=False, duration_seconds=None)
+                continue
+
+            if not candidate_events:
+                logger.warning(f"Candidate market MIDI {candidate_path} has no drum track")
+                repo.update_file_probe_result(file_entry.id, has_drum_track=False, duration_seconds=None)
+                continue
+
+            any_readable = True
+            cand_duration = candidate_pm.get_end_time()
+            if file_entry.has_drum_track is None:
+                repo.update_file_probe_result(file_entry.id, has_drum_track=True, duration_seconds=cand_duration)
+
+            if not is_duration_compatible(ref_duration, cand_duration):
+                continue
+
+            cand_hits = [(event.start, event.hit_type) for event in candidate_events]
+            cand_features = build_onset_density_features(cand_hits, cand_duration)
+            alignment = compute_dtw_alignment(ref_features, cand_features)
+
+            if is_alignment_confident(alignment):
+                if winner is None or alignment.normalized_cost < winner[0].normalized_cost:
+                    winner = (alignment, candidate_pm)
+            elif best_attempt is None or alignment.normalized_cost < best_attempt[0].normalized_cost:
+                best_attempt = (alignment,)
+
+        if winner is not None:
+            alignment, candidate_pm = winner
+            warped = warp_midi(candidate_pm, alignment.mapping_fn, ref_duration, bpm)
+
+            output_path = settings.stems_root / session_id / "drum_transcription.mid"
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            warped.write(str(output_path))
+            logger.info(f"Applied market MIDI for session {session_id}: {matched_artist} - {matched_title}")
+
+            return MarketMidiMatchResult(
+                status="applied",
+                alignment_cost=alignment.normalized_cost,
+                alignment_coverage=alignment.coverage_ratio,
+                applied=True,
+                **base_result_kwargs,
+            )
+
+        if best_attempt is not None:
+            alignment, = best_attempt
+            return MarketMidiMatchResult(
+                status="low_confidence",
+                alignment_cost=alignment.normalized_cost,
+                alignment_coverage=alignment.coverage_ratio,
+                **base_result_kwargs,
+            )
+
+        if any_readable:
+            # Pelo menos um arquivo tinha trilha de bateria, mas nenhum passou
+            # nem a checagem de duração (rejeitado antes do DTW rodar).
+            return MarketMidiMatchResult(status="low_confidence", **base_result_kwargs)
+
+        return MarketMidiMatchResult(status="candidate_unreadable", **base_result_kwargs)
 
     @staticmethod
     def _persist_result(session_id: str, result: MarketMidiMatchResult) -> None:

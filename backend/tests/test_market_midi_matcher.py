@@ -61,33 +61,34 @@ def test_strip_leading_artist_prefix_handles_channel_name_with_extra_word():
 
 
 def _index() -> list[MarketMidiIndexEntry]:
-    def entry(artist: str, title: str, path: str) -> MarketMidiIndexEntry:
+    def entry(artist_id: int, artist: str, track_id: int, title: str) -> MarketMidiIndexEntry:
         return MarketMidiIndexEntry(
+            artist_id=artist_id,
             artist=artist,
-            title=title,
             artist_norm=normalize_artist(artist),
+            track_id=track_id,
+            title=title,
             title_norm=normalize_title(title),
-            relative_path=path,
         )
 
     return [
-        entry("Supertramp", "Goodbye Stranger", "Supertramp/Goodbye Stranger.mid"),
-        entry("Supertramp", "The Logical Song", "Supertramp/The Logical Song.mid"),
-        entry("Coldplay", "Yellow", "Coldplay/Yellow.mid"),
-        entry("Queen", "Bohemian Rhapsody", "Queen/Bohemian Rhapsody.mid"),
+        entry(1, "Supertramp", 1, "Goodbye Stranger"),
+        entry(1, "Supertramp", 2, "The Logical Song"),
+        entry(2, "Coldplay", 3, "Yellow"),
+        entry(3, "Queen", 4, "Bohemian Rhapsody"),
     ]
 
 
 def test_match_against_index_exact_match():
     match = match_against_index(_index(), "Supertramp", "Goodbye Stranger")
     assert match is not None
-    assert match.relative_path == "Supertramp/Goodbye Stranger.mid"
+    assert match.track_id == 1
 
 
 def test_match_against_index_near_fuzzy_match():
     match = match_against_index(_index(), "Supertramp - Topic", "Goodbye Stranger (Remastered 2010)")
     assert match is not None
-    assert match.relative_path == "Supertramp/Goodbye Stranger.mid"
+    assert match.track_id == 1
 
 
 def test_match_against_index_rejects_below_threshold():
@@ -115,7 +116,7 @@ def test_match_against_index_handles_official_channel_artist_suffix():
     # threshold against "Queen" before normalize_artist stripped "Official".
     match = match_against_index(_index(), "Queen Official", "Bohemian Rhapsody")
     assert match is not None
-    assert match.relative_path == "Queen/Bohemian Rhapsody.mid"
+    assert match.track_id == 4
 
 
 def test_match_against_index_handles_title_repeating_artist():
@@ -123,7 +124,7 @@ def test_match_against_index_handles_title_repeating_artist():
     # duplicated in the title) dragged the title score below threshold.
     match = match_against_index(_index(), "Supertramp", "Supertramp - Goodbye Stranger (Official Video)")
     assert match is not None
-    assert match.relative_path == "Supertramp/Goodbye Stranger.mid"
+    assert match.track_id == 1
 
 
 def test_match_against_index_handles_title_repeating_channel_name():
@@ -132,4 +133,4 @@ def test_match_against_index_handles_title_repeating_channel_name():
     # the duplicated-artist prefix from being stripped from the title.
     match = match_against_index(_index(), "Supertramp Band", "Supertramp - Goodbye Stranger (Official Video)")
     assert match is not None
-    assert match.relative_path == "Supertramp/Goodbye Stranger.mid"
+    assert match.track_id == 1
