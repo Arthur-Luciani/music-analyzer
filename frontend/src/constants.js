@@ -5,6 +5,7 @@ export const PAGES = {
   workspace: "workspace",
   library: "library",
   drum_inspector: "drum_inspector",
+  catalog: "catalog",
 };
 
 export const STEM_ORDER = ["vocals", "drums", "bass", "other"];

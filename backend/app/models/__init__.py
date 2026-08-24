@@ -12,7 +12,19 @@ from app.models.session import (
 )
 from app.models.export import ExportRequest, ExportArtifact, ExportJob
 from app.models.drum_analysis import DrumAnalysis, DrumHit, DrumCorrections
-from app.models.market_midi import MarketMidiMatchResult
+from app.models.market_midi import (
+    MarketMidiMatchResult,
+    MarketLinkedSession,
+    MarketMidiFileSummary,
+    MarketTrackSummary,
+    MarketTrackDetail,
+    MarketArtistSummary,
+    MarketArtistDetail,
+    MarketArtistListResponse,
+    MarketTrackListResponse,
+    MarketArtistUpdate,
+    MarketTrackUpdate,
+)
 from app.models.music_identity import ArtistCandidate, MusicIdentity, MusicIdentityRequest
 
 __all__ = [
@@ -39,6 +51,16 @@ __all__ = [
     "DrumHit",
     "DrumCorrections",
     "MarketMidiMatchResult",
+    "MarketLinkedSession",
+    "MarketMidiFileSummary",
+    "MarketTrackSummary",
+    "MarketTrackDetail",
+    "MarketArtistSummary",
+    "MarketArtistDetail",
+    "MarketArtistListResponse",
+    "MarketTrackListResponse",
+    "MarketArtistUpdate",
+    "MarketTrackUpdate",
     "ArtistCandidate",
     "MusicIdentity",
     "MusicIdentityRequest",

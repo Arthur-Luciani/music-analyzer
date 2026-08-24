@@ -50,6 +50,85 @@ export async function resolveArtistCandidates(query, limit = 5) {
   return parseResponse(response);
 }
 
+export async function listMarketArtists(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.query) {
+    params.set("query", filters.query);
+  }
+  params.set("page", String(filters.page || 1));
+  params.set("page_size", String(filters.page_size || 20));
+
+  const response = await fetch(`/api/market-midi/artists?${params.toString()}`);
+  return parseResponse(response);
+}
+
+export async function getMarketArtist(artistId) {
+  const response = await fetch(`/api/market-midi/artists/${encodeURIComponent(artistId)}`);
+  return parseResponse(response);
+}
+
+export async function updateMarketArtist(artistId, payload) {
+  const response = await fetch(`/api/market-midi/artists/${encodeURIComponent(artistId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse(response);
+}
+
+export async function deleteMarketArtist(artistId) {
+  const response = await fetch(`/api/market-midi/artists/${encodeURIComponent(artistId)}`, {
+    method: "DELETE",
+  });
+  if (response.status === 204) return true;
+  return parseResponse(response);
+}
+
+export async function listMarketTracks(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.artist_id != null) {
+    params.set("artist_id", String(filters.artist_id));
+  }
+  if (filters.query) {
+    params.set("query", filters.query);
+  }
+  params.set("page", String(filters.page || 1));
+  params.set("page_size", String(filters.page_size || 20));
+
+  const response = await fetch(`/api/market-midi/tracks?${params.toString()}`);
+  return parseResponse(response);
+}
+
+export async function getMarketTrack(trackId) {
+  const response = await fetch(`/api/market-midi/tracks/${encodeURIComponent(trackId)}`);
+  return parseResponse(response);
+}
+
+export async function updateMarketTrack(trackId, payload) {
+  const response = await fetch(`/api/market-midi/tracks/${encodeURIComponent(trackId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse(response);
+}
+
+export async function deleteMarketTrack(trackId) {
+  const response = await fetch(`/api/market-midi/tracks/${encodeURIComponent(trackId)}`, {
+    method: "DELETE",
+  });
+  if (response.status === 204) return true;
+  return parseResponse(response);
+}
+
+export async function deleteMarketMidiFile(fileId) {
+  const response = await fetch(`/api/market-midi/midi-files/${encodeURIComponent(fileId)}`, {
+    method: "DELETE",
+  });
+  if (response.status === 204) return true;
+  return parseResponse(response);
+}
+
 export async function getMusicIdentity(sessionId) {
   const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/music-identity`);
   return parseResponse(response);

@@ -103,3 +103,21 @@ def test_set_resolution_is_noop_when_no_identity_row(repo: SessionMusicIdentityR
     # Não lança mesmo sem upsert prévio — só não faz nada.
     repo.set_resolution("s1", track_id=10, resolved_midi_file_id=20, resolved_at=datetime.utcnow())
     assert repo.get("s1") is None
+
+
+def test_get_many_returns_only_sessions_with_saved_identity(repo: SessionMusicIdentityRepository, db_session):
+    _create_session(db_session, "s1")
+    _create_session(db_session, "s2")
+    _create_session(db_session, "s3")
+    repo.upsert("s1", artist_id=1, artist_text="Survivor", title_text="Eye Of The Tiger", source_url=None)
+    repo.upsert("s3", artist_id=2, artist_text="Coldplay", title_text="Yellow", source_url=None)
+
+    result = repo.get_many(["s1", "s2", "s3"])
+
+    assert set(result.keys()) == {"s1", "s3"}
+    assert result["s1"].artist_text == "Survivor"
+    assert result["s3"].title_text == "Yellow"
+
+
+def test_get_many_empty_list_returns_empty_dict(repo: SessionMusicIdentityRepository):
+    assert repo.get_many([]) == {}

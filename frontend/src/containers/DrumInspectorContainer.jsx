@@ -4,6 +4,7 @@ import DrumInspectorPage from "../pages/DrumInspectorPage";
 import { getStemAudioUrl, getMusicIdentity } from "../api";
 import { useWebAudioMixer } from "../hooks/useWebAudioMixer";
 import { useMusicIdentity } from "../hooks/useMusicIdentity";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
 export default function DrumInspectorContainer({ session, workspace, onBack }) {
   const {
@@ -171,32 +172,6 @@ export default function DrumInspectorContainer({ session, workspace, onBack }) {
     if (wavesurfer) wavesurfer.setTime(time);
   };
 
-  // Keyboard Shortcuts
-  useEffect(() => {
-    const isTypingTarget = (target) =>
-      target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
-
-    const handleKeyDown = (e) => {
-      if (isTypingTarget(e.target)) return;
-
-      if (e.code === "Space") {
-        e.preventDefault();
-        togglePlay();
-      } else if (e.code === "ArrowRight") {
-        e.preventDefault();
-        const nextTime = currentTimeRef.current + (e.shiftKey ? 0.5 : 0.05);
-        handleSeek(nextTime);
-      } else if (e.code === "ArrowLeft") {
-        e.preventDefault();
-        const nextTime = currentTimeRef.current - (e.shiftKey ? 0.5 : 0.05);
-        handleSeek(nextTime);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, wavesurfer]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -205,6 +180,16 @@ export default function DrumInspectorContainer({ session, workspace, onBack }) {
       setSaving(false);
     }
   };
+
+  // Atalhos: Espaço (play/pause), setas (retroceder/avançar — Shift pra passo
+  // maior) e Ctrl+S (salvar correções), todos ignorados enquanto o foco está
+  // num campo de texto.
+  useKeyboardShortcuts([
+    { code: "Space", handler: () => togglePlay() },
+    { code: "ArrowRight", handler: (e) => handleSeek(currentTimeRef.current + (e.shiftKey ? 0.5 : 0.05)) },
+    { code: "ArrowLeft", handler: (e) => handleSeek(currentTimeRef.current - (e.shiftKey ? 0.5 : 0.05)) },
+    { key: "s", ctrl: true, handler: () => handleSave() },
+  ]);
 
   // Corrigir artista/música de uma sessão já processada (sem passar pelo
   // wizard de novo) e rebuscar o MIDI de mercado sob demanda — não precisa

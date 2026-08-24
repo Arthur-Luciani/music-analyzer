@@ -1,9 +1,11 @@
 import { useState, useCallback } from "react";
 import { listSessions, duplicateSession, reprocessSession, deleteSession } from "../api";
+import { useDialog } from "../context/DialogContext";
 
 const LIBRARY_PAGE_SIZE = 8;
 
 export function useLibrary() {
+  const { confirm } = useDialog();
   const [filters, setFilters] = useState({
     query: "",
     status: "",
@@ -78,7 +80,12 @@ export function useLibrary() {
 
   const handleDelete = async (sessionId, sessionCode) => {
     const label = sessionCode ? `a sessão ${sessionCode}` : "esta sessão";
-    if (!window.confirm(`Tem certeza que deseja excluir ${label}? Esta ação é irreversível e apagará os stems do disco.`)) {
+    const confirmed = await confirm(`Tem certeza que deseja excluir ${label}? Esta ação é irreversível e apagará os stems do disco.`, {
+      title: "Excluir sessão",
+      confirmLabel: "Excluir",
+      danger: true,
+    });
+    if (!confirmed) {
       return;
     }
 

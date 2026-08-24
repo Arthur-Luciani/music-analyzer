@@ -43,6 +43,16 @@ export function getStateBadgeClass(state) {
   return "processing";
 }
 
+export function formatTrackLabel(session, fallback = "Faixa não informada") {
+  if (!session) {
+    return fallback;
+  }
+  if (session.identity_artist && session.identity_title) {
+    return `${session.identity_artist} - ${session.identity_title}`;
+  }
+  return session.track_title || fallback;
+}
+
 export function toFileName(pathLike) {
   if (!pathLike || typeof pathLike !== "string") {
     return "arquivo.wav";

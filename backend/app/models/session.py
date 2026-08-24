@@ -104,6 +104,12 @@ class SessionSummary(BaseModel):
     session_code: str
     track_title: Optional[str] = None
     artist: Optional[str] = None
+    identity_artist: Optional[str] = Field(
+        default=None, description="Artista confirmado no wizard (session_music_identity), quando existir"
+    )
+    identity_title: Optional[str] = Field(
+        default=None, description="Título confirmado no wizard (session_music_identity), quando existir"
+    )
     status: JobState
     created_at: datetime
     updated_at: datetime

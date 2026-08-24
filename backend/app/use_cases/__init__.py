@@ -10,6 +10,17 @@ from .save_drum_corrections import SaveDrumCorrectionsUseCase
 from .match_market_midi import MatchMarketMidiUseCase
 from .resolve_artist_candidates import ResolveArtistCandidatesUseCase
 from .save_music_identity import SaveMusicIdentityUseCase
+from .manage_market_catalog import (
+    ListMarketArtistsUseCase,
+    GetMarketArtistUseCase,
+    UpdateMarketArtistUseCase,
+    DeleteMarketArtistUseCase,
+    ListMarketTracksUseCase,
+    GetMarketTrackUseCase,
+    UpdateMarketTrackUseCase,
+    DeleteMarketTrackUseCase,
+    DeleteMarketMidiFileUseCase,
+)
 
 __all__ = [
     "SearchCandidatesUseCase",
@@ -26,4 +37,13 @@ __all__ = [
     "MatchMarketMidiUseCase",
     "ResolveArtistCandidatesUseCase",
     "SaveMusicIdentityUseCase",
+    "ListMarketArtistsUseCase",
+    "GetMarketArtistUseCase",
+    "UpdateMarketArtistUseCase",
+    "DeleteMarketArtistUseCase",
+    "ListMarketTracksUseCase",
+    "GetMarketTrackUseCase",
+    "UpdateMarketTrackUseCase",
+    "DeleteMarketTrackUseCase",
+    "DeleteMarketMidiFileUseCase",
 ]

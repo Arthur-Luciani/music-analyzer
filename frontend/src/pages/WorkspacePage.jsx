@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useWebAudioMixer } from "../hooks/useWebAudioMixer";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import InstrumentLane from "../components/InstrumentLane";
+import { formatTrackLabel } from "../utils/formatters";
 
 function formatClock(secondsValue) {
   const safeValue = Number.isFinite(secondsValue) ? Math.max(0, Math.floor(secondsValue)) : 0;
@@ -161,6 +163,17 @@ export default function WorkspacePage({
     setCurrentTimeSeconds(nextTime);
   }
 
+  // Espaço (play/pause) e setas (retroceder/avançar 1s, ou 5s com Shift —
+  // mesmo salto dos botões -5s/+5s) — mesmo padrão do Inspetor de Bateria.
+  useKeyboardShortcuts(
+    [
+      { code: "Space", handler: () => (isPlaying ? pauseAll() : playAll()) },
+      { code: "ArrowRight", handler: (e) => handleTransportSeek(currentTimeSeconds + (e.shiftKey ? 5 : 1)) },
+      { code: "ArrowLeft", handler: (e) => handleTransportSeek(currentTimeSeconds - (e.shiftKey ? 5 : 1)) },
+    ],
+    { enabled: canUsePlayer }
+  );
+
   useEffect(() => {
     if (stemNames.length && !activeStem) setActiveStem(stemNames[0]);
   }, [stemNames, activeStem]);
@@ -312,7 +325,7 @@ export default function WorkspacePage({
           PICO: <strong style={{ color: "var(--bad)" }}>{masterMetrics?.true_peak_dbtp || "--"} dB</strong>
         </div>
         <div style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 24 }}>
-          SESSÃO: <strong>{job?.track_title || "Sem Título"}</strong>
+          SESSÃO: <strong>{formatTrackLabel(job, "Sem Título")}</strong>
         </div>
         <button 
           className="btn btn-accent btn-xs" 
