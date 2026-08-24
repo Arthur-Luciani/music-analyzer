@@ -9,7 +9,7 @@ import { useProcessingContext } from "../context/ProcessingContext";
 import { formatDuration, getFriendlySessionCode } from "../utils/formatters";
 import { PAGES } from "../constants";
 
-export default function DiscoverContainer({ setCurrentPage, resumeSessionId, onResumeHandled }) {
+export default function DiscoverContainer({ setCurrentPage, resumeSessionId, onResumeHandled, prefillQuery, onPrefillHandled }) {
   const discovery = useDiscovery();
   const identity = useMusicIdentity();
   const { currentSession } = useSession();
@@ -47,6 +47,16 @@ export default function DiscoverContainer({ setCurrentPage, resumeSessionId, onR
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeSessionId]);
+
+  // Vindo do Catálogo, com um MIDI sem sessão vinculada — pré-preenche e já
+  // dispara a busca pra economizar um passo do usuário.
+  useEffect(() => {
+    if (!prefillQuery) return;
+    discovery.setQuery(prefillQuery);
+    discovery.runSearch(prefillQuery);
+    onPrefillHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillQuery]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();

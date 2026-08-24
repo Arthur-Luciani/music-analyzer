@@ -31,62 +31,69 @@ export default function MusicIdentityStep({
             essa música.
           </p>
 
-          <div className="field-grid">
-            <label htmlFor="identity-artist">Artista</label>
-            <div className="input-row">
-              <input
-                id="identity-artist"
-                type="text"
-                value={artistText}
-                onChange={(event) => onArtistTextChange(event.target.value)}
-                placeholder="Ex: Survivor"
-                disabled={confirming}
-              />
-              {selectedArtistId && (
-                <span className="compatibility-pill high">Vinculado ao catálogo</span>
-              )}
-            </div>
-
-            {resolving && <p className="inline-note">Buscando sugestões...</p>}
-
-            {suggestions.length > 0 && (
-              <div className="identity-suggestions">
-                {suggestions.map((candidate) => (
-                  <button
-                    key={candidate.id}
-                    type="button"
-                    className="identity-suggestion-chip"
-                    onClick={() => pickSuggestion(candidate)}
-                  >
-                    {candidate.name} · {Math.round(candidate.score)}%
-                  </button>
-                ))}
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!confirming) onConfirm();
+            }}
+          >
+            <div className="field-grid">
+              <label htmlFor="identity-artist">Artista</label>
+              <div className="input-row">
+                <input
+                  id="identity-artist"
+                  type="text"
+                  value={artistText}
+                  onChange={(event) => onArtistTextChange(event.target.value)}
+                  placeholder="Ex: Survivor"
+                  disabled={confirming}
+                />
+                {selectedArtistId && (
+                  <span className="compatibility-pill high">Vinculado ao catálogo</span>
+                )}
               </div>
-            )}
 
-            <label htmlFor="identity-title">Música</label>
-            <div className="input-row">
-              <input
-                id="identity-title"
-                type="text"
-                value={titleText}
-                onChange={(event) => setTitleText(event.target.value)}
-                placeholder="Ex: Eye Of The Tiger"
-                disabled={confirming}
-              />
+              {resolving && <p className="inline-note">Buscando sugestões...</p>}
+
+              {suggestions.length > 0 && (
+                <div className="identity-suggestions">
+                  {suggestions.map((candidate) => (
+                    <button
+                      key={candidate.id}
+                      type="button"
+                      className="identity-suggestion-chip"
+                      onClick={() => pickSuggestion(candidate)}
+                    >
+                      {candidate.name} · {Math.round(candidate.score)}%
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <label htmlFor="identity-title">Música</label>
+              <div className="input-row">
+                <input
+                  id="identity-title"
+                  type="text"
+                  value={titleText}
+                  onChange={(event) => setTitleText(event.target.value)}
+                  placeholder="Ex: Eye Of The Tiger"
+                  disabled={confirming}
+                />
+              </div>
             </div>
-          </div>
 
-          {error && <p className="error-banner">{error}</p>}
+            {error && <p className="error-banner">{error}</p>}
 
-          <div className="input-row" style={{ marginTop: 16 }}>
-            <button type="button" className="btn btn-subtle" onClick={onBack} disabled={confirming}>
-              Voltar
-            </button>
-            <button type="button" className="btn btn-accent" onClick={onConfirm} disabled={confirming}>
-              {confirming ? "Confirmando..." : "Confirmar e iniciar processamento"}
-            </button>
-          </div>
+            <div className="input-row" style={{ marginTop: 16 }}>
+              <button type="button" className="btn btn-subtle" onClick={onBack} disabled={confirming}>
+                Voltar
+              </button>
+              <button type="submit" className="btn btn-accent" disabled={confirming}>
+                {confirming ? "Confirmando..." : "Confirmar e iniciar processamento"}
+              </button>
+            </div>
+          </form>
         </section>
 
         <aside className="stack">

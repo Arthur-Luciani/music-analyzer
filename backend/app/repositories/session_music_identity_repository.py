@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.config import SessionLocal
-from app.db.models import SessionMusicIdentityORM
+from app.db.models import SessionMusicIdentityORM, SessionORM
 
 
 @dataclass(frozen=True)
@@ -20,6 +20,19 @@ class MusicIdentityEntry:
     track_id: Optional[int]
     resolved_midi_file_id: Optional[int]
     resolved_at: Optional[datetime]
+
+
+@dataclass(frozen=True)
+class LinkedSessionEntry:
+    """Uma sessão que já resolveu (`resolved_midi_file_id`) pra um arquivo
+    MIDI de mercado específico — usado pela tela de Catálogo pra mostrar se
+    um arquivo já foi usado por alguma sessão real."""
+    midi_file_id: int
+    session_id: str
+    session_code: str
+    track_title: Optional[str]
+    artist: Optional[str]
+    state: str
 
 
 class SessionMusicIdentityRepository:
@@ -99,6 +112,37 @@ class SessionMusicIdentityRepository:
             if close_after:
                 session.close()
 
+    def get_many(self, session_ids: list[str]) -> dict[str, MusicIdentityEntry]:
+        """Busca em lote pra listagens (ex: Biblioteca) — evita N+1 de
+        `get()` por sessão exibida na página."""
+        if not session_ids:
+            return {}
+
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            rows = (
+                session.query(SessionMusicIdentityORM)
+                .filter(SessionMusicIdentityORM.session_id.in_(session_ids))
+                .all()
+            )
+            return {
+                row.session_id: MusicIdentityEntry(
+                    session_id=row.session_id,
+                    artist_id=row.artist_id,
+                    artist_text=row.artist_text,
+                    title_text=row.title_text,
+                    source_url=row.source_url,
+                    track_id=row.track_id,
+                    resolved_midi_file_id=row.resolved_midi_file_id,
+                    resolved_at=row.resolved_at,
+                )
+                for row in rows
+            }
+        finally:
+            if close_after:
+                session.close()
+
     def set_resolution(
         self,
         session_id: str,
@@ -127,6 +171,40 @@ class SessionMusicIdentityRepository:
         except Exception:
             session.rollback()
             raise
+        finally:
+            if close_after:
+                session.close()
+
+    def list_sessions_for_midi_files(self, midi_file_ids: list[int]) -> dict[int, list[LinkedSessionEntry]]:
+        """Pra cada arquivo MIDI de mercado, quais sessões já o usaram como
+        transcrição vencedora (ver `set_resolution`, chamado por
+        match_market_midi.py). Um arquivo pode ter 0, 1 ou mais sessões."""
+        if not midi_file_ids:
+            return {}
+
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            rows = (
+                session.query(SessionMusicIdentityORM, SessionORM)
+                .join(SessionORM, SessionMusicIdentityORM.session_id == SessionORM.id)
+                .filter(SessionMusicIdentityORM.resolved_midi_file_id.in_(midi_file_ids))
+                .order_by(SessionORM.created_at.desc())
+                .all()
+            )
+
+            result: dict[int, list[LinkedSessionEntry]] = {}
+            for identity, session_row in rows:
+                entry = LinkedSessionEntry(
+                    midi_file_id=identity.resolved_midi_file_id,
+                    session_id=session_row.id,
+                    session_code=session_row.session_code,
+                    track_title=session_row.track_title,
+                    artist=session_row.artist,
+                    state=session_row.state,
+                )
+                result.setdefault(entry.midi_file_id, []).append(entry)
+            return result
         finally:
             if close_after:
                 session.close()

@@ -5,6 +5,7 @@ import DiscoverContainer from "./containers/DiscoverContainer";
 import WorkspaceContainer from "./containers/WorkspaceContainer";
 import LibraryContainer from "./containers/LibraryContainer";
 import DrumInspectorContainer from "./containers/DrumInspectorContainer";
+import MarketCatalogContainer from "./containers/MarketCatalogContainer";
 import JobSidebar from "./components/JobSidebar";
 import { useSession } from "./context/SessionContext";
 import { useWorkspace } from "./hooks/useWorkspace";
@@ -12,11 +13,17 @@ import { useWorkspace } from "./hooks/useWorkspace";
 export default function App() {
   const [currentPage, setCurrentPage] = useState(PAGES.discover);
   const [resumeSessionId, setResumeSessionId] = useState(null);
+  const [prefillQuery, setPrefillQuery] = useState(null);
   const { currentSession } = useSession();
   const workspace = useWorkspace();
 
   const handleResumeDraft = (sessionId) => {
     setResumeSessionId(sessionId);
+    setCurrentPage(PAGES.discover);
+  };
+
+  const handleOpenWizardWithQuery = (query) => {
+    setPrefillQuery(query);
     setCurrentPage(PAGES.discover);
   };
 
@@ -54,6 +61,12 @@ export default function App() {
             >
               Biblioteca
             </button>
+            <button
+              className={`nav-link-btn ${currentPage === PAGES.catalog ? "active" : ""}`}
+              onClick={() => setCurrentPage(PAGES.catalog)}
+            >
+              Catálogo
+            </button>
           </nav>
         </header>
 
@@ -63,6 +76,8 @@ export default function App() {
             workspace={workspace}
             resumeSessionId={resumeSessionId}
             onResumeHandled={() => setResumeSessionId(null)}
+            prefillQuery={prefillQuery}
+            onPrefillHandled={() => setPrefillQuery(null)}
           />
         )}
         {currentPage === PAGES.workspace && <WorkspaceContainer setCurrentPage={setCurrentPage} workspace={workspace} />}
@@ -70,11 +85,14 @@ export default function App() {
           <LibraryContainer setCurrentPage={setCurrentPage} workspace={workspace} onResumeDraft={handleResumeDraft} />
         )}
         {currentPage === PAGES.drum_inspector && (
-          <DrumInspectorContainer 
+          <DrumInspectorContainer
             session={currentSession}
             workspace={workspace}
             onBack={() => setCurrentPage(PAGES.workspace)}
           />
+        )}
+        {currentPage === PAGES.catalog && (
+          <MarketCatalogContainer setCurrentPage={setCurrentPage} onOpenWizardWithQuery={handleOpenWizardWithQuery} />
         )}
 
         <JobSidebar setCurrentPage={setCurrentPage} />

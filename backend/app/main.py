@@ -29,6 +29,12 @@ from app.models import (
     DrumAnalysis,
     DrumCorrections,
     MarketMidiMatchResult,
+    MarketArtistDetail,
+    MarketArtistListResponse,
+    MarketArtistUpdate,
+    MarketTrackDetail,
+    MarketTrackListResponse,
+    MarketTrackUpdate,
 )
 from app.use_cases.generate_drum_midi import GenerateDrumMidiUseCase
 from app.settings import settings
@@ -113,6 +119,88 @@ async def resolve_artist(
     return await asyncio.to_thread(job_service.resolve_artist_candidates, q, limit=limit)
 
 
+@app.get("/api/market-midi/artists", response_model=MarketArtistListResponse)
+async def list_market_artists(
+    query: str | None = Query(default=None, min_length=1),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+) -> MarketArtistListResponse:
+    return await asyncio.to_thread(job_service.list_market_artists, query=query, page=page, page_size=page_size)
+
+
+@app.get("/api/market-midi/artists/{artist_id}", response_model=MarketArtistDetail)
+async def get_market_artist(artist_id: int) -> MarketArtistDetail:
+    result = await asyncio.to_thread(job_service.get_market_artist, artist_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail={"code": "ARTIST_NOT_FOUND", "message": "Artista não encontrado"})
+    return result
+
+
+@app.put("/api/market-midi/artists/{artist_id}", response_model=MarketArtistDetail)
+async def update_market_artist(artist_id: int, payload: MarketArtistUpdate) -> MarketArtistDetail:
+    try:
+        result = await asyncio.to_thread(job_service.update_market_artist, artist_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail={"code": "DUPLICATE_ARTIST_NAME", "message": str(exc)}) from exc
+    if result is None:
+        raise HTTPException(status_code=404, detail={"code": "ARTIST_NOT_FOUND", "message": "Artista não encontrado"})
+    return result
+
+
+@app.delete("/api/market-midi/artists/{artist_id}", status_code=204)
+async def delete_market_artist(artist_id: int) -> None:
+    deleted = await asyncio.to_thread(job_service.delete_market_artist, artist_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail={"code": "ARTIST_NOT_FOUND", "message": "Artista não encontrado"})
+
+
+@app.get("/api/market-midi/tracks", response_model=MarketTrackListResponse)
+async def list_market_tracks(
+    artist_id: int | None = Query(default=None),
+    query: str | None = Query(default=None, min_length=1),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+) -> MarketTrackListResponse:
+    return await asyncio.to_thread(
+        job_service.list_market_tracks, artist_id=artist_id, query=query, page=page, page_size=page_size
+    )
+
+
+@app.get("/api/market-midi/tracks/{track_id}", response_model=MarketTrackDetail)
+async def get_market_track(track_id: int) -> MarketTrackDetail:
+    result = await asyncio.to_thread(job_service.get_market_track, track_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail={"code": "TRACK_NOT_FOUND", "message": "Faixa não encontrada"})
+    return result
+
+
+@app.put("/api/market-midi/tracks/{track_id}", response_model=MarketTrackDetail)
+async def update_market_track(track_id: int, payload: MarketTrackUpdate) -> MarketTrackDetail:
+    try:
+        result = await asyncio.to_thread(job_service.update_market_track, track_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail={"code": "DUPLICATE_TRACK_TITLE", "message": str(exc)}) from exc
+    if result is None:
+        raise HTTPException(status_code=404, detail={"code": "TRACK_NOT_FOUND", "message": "Faixa não encontrada"})
+    return result
+
+
+@app.delete("/api/market-midi/tracks/{track_id}", status_code=204)
+async def delete_market_track(track_id: int) -> None:
+    deleted = await asyncio.to_thread(job_service.delete_market_track, track_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail={"code": "TRACK_NOT_FOUND", "message": "Faixa não encontrada"})
+
+
+@app.delete("/api/market-midi/midi-files/{file_id}", status_code=204)
+async def delete_market_midi_file(file_id: int) -> None:
+    deleted = await asyncio.to_thread(job_service.delete_market_midi_file, file_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=404, detail={"code": "MIDI_FILE_NOT_FOUND", "message": "Arquivo MIDI não encontrado"}
+        )
+
+
 @app.get("/api/sessions/{session_id}/music-identity", response_model=Optional[MusicIdentity])
 async def get_music_identity(session_id: str) -> Optional[MusicIdentity]:
     """Retorna a identidade musical confirmada, se já existir — None é normal
@@ -185,12 +273,16 @@ async def get_session(session_id: str) -> SessionDetail:
     if job is None:
         raise HTTPException(status_code=404, detail="Session not found")
 
+    identity = await asyncio.to_thread(job_service.get_music_identity, session_id)
+
     return SessionDetail(
         session_id=job.session_id,
         job_id=job.job_id,
         session_code=job.session_code,
         track_title=job.selected_track.title if job.selected_track else None,
         artist=job.selected_track.artist if job.selected_track else None,
+        identity_artist=identity.artist_text if identity else None,
+        identity_title=identity.title_text if identity else None,
         status=job.state,
         created_at=job.created_at,
         updated_at=job.updated_at,

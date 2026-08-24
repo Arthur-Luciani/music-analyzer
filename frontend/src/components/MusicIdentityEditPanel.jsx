@@ -13,7 +13,13 @@ export default function MusicIdentityEditPanel({
   onCancel,
 }) {
   return (
-    <div className="identity-edit-panel">
+    <form
+      className="identity-edit-panel"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!saving) onSave();
+      }}
+    >
       <div className="field-grid">
         <label htmlFor="edit-identity-artist">Artista</label>
         <div className="input-row">
@@ -62,10 +68,10 @@ export default function MusicIdentityEditPanel({
         <button type="button" className="btn btn-subtle" onClick={onCancel} disabled={saving}>
           Cancelar
         </button>
-        <button type="button" className="btn btn-accent" onClick={onSave} disabled={saving}>
+        <button type="submit" className="btn btn-accent" disabled={saving}>
           {saving ? "Salvando..." : "Salvar e rebuscar MIDI"}
         </button>
       </div>
-    </div>
+    </form>
   );
 }

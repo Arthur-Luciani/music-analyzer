@@ -1,3 +1,5 @@
+import { formatTrackLabel } from "../utils/formatters";
+
 function formatSessionDate(dateValue) {
   if (!dateValue) {
     return "--";
@@ -53,13 +55,22 @@ export default function LibraryPage({
 
 
       <section className="card animate-up" style={{ marginTop: 12, animationDelay: "60ms" }}>
-        <div className="search-filter">
+        <form
+          className="search-filter"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onApplyFilters();
+          }}
+        >
           <input
             type="text"
             value={filters.query}
             placeholder="Buscar por sessão, faixa ou artista"
             aria-label="buscar na biblioteca"
             onChange={(event) => onFilterChange("query", event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") onClearFilters();
+            }}
           />
           <select
             aria-label="filtro de estado"
@@ -91,7 +102,7 @@ export default function LibraryPage({
               onChange={(event) => onFilterChange("created_to", event.target.value)}
             />
           </div>
-          <button className="btn btn-subtle" type="button" onClick={onApplyFilters} disabled={loading}>
+          <button className="btn btn-subtle" type="submit" disabled={loading}>
             Aplicar filtros
           </button>
           <button className="btn btn-subtle" type="button" onClick={onClearFilters} disabled={loading}>
@@ -100,7 +111,7 @@ export default function LibraryPage({
           <a className="btn btn-accent" href="/?page=discover">
             Nova separacao
           </a>
-        </div>
+        </form>
 
         {actionMessage && <p className="inline-note">{actionMessage}</p>}
 
@@ -146,7 +157,7 @@ export default function LibraryPage({
                   return (
                     <tr key={session.session_id}>
                       <td>{session.session_code}</td>
-                      <td>{session.track_title || "Faixa não informada"}</td>
+                      <td>{formatTrackLabel(session)}</td>
                       <td>{formatSessionDate(session.created_at)}</td>
                       <td>
                         <span className={`state ${stateClass}`}>{getStateBadgeLabel(session.status)}</span>

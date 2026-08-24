@@ -1,0 +1,61 @@
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 12, 0.65);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 16px;
+}
+
+.dialog-card {
+  background: rgba(28, 32, 38, 0.98);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-strong);
+  padding: 20px;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-strong);
+}
+
+.dialog-message {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-body);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.dialog-input {
+  border-radius: var(--radius-md);
+  border: 1px solid #454d59;
+  background: #1a1e24;
+  color: var(--text-body);
+  font-size: 13px;
+  padding: 10px 12px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.dialog-input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(193, 138, 58, 0.15);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}

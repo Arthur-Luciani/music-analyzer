@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, joinedload, sessionmaker
 
 from app.db.config import SessionLocal
 from app.db.models import MarketArtistORM, MarketMidiFileORM, MarketTrackORM
@@ -218,6 +220,229 @@ class MarketMidiRepository:
             row.has_drum_track = has_drum_track
             row.duration_seconds = duration_seconds
             session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            if close_after:
+                session.close()
+
+    # --- Tela de catálogo (visualização/edição) ------------------------
+
+    def count_tracks_by_artist(self, artist_ids: list[int]) -> dict[int, int]:
+        if not artist_ids:
+            return {}
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            rows = (
+                session.query(MarketTrackORM.artist_id, func.count(MarketTrackORM.id))
+                .filter(MarketTrackORM.artist_id.in_(artist_ids))
+                .group_by(MarketTrackORM.artist_id)
+                .all()
+            )
+            return {artist_id: count for artist_id, count in rows}
+        finally:
+            if close_after:
+                session.close()
+
+    def count_midi_files_by_track(self, track_ids: list[int]) -> dict[int, int]:
+        if not track_ids:
+            return {}
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            rows = (
+                session.query(MarketMidiFileORM.track_id, func.count(MarketMidiFileORM.id))
+                .filter(MarketMidiFileORM.track_id.in_(track_ids))
+                .group_by(MarketMidiFileORM.track_id)
+                .all()
+            )
+            return {track_id: count for track_id, count in rows}
+        finally:
+            if close_after:
+                session.close()
+
+    def list_artists_page(
+        self, *, query: Optional[str], page: int, page_size: int
+    ) -> tuple[list[MarketArtistORM], int]:
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            q = session.query(MarketArtistORM)
+            if query:
+                q = q.filter(MarketArtistORM.name.ilike(f"%{query.strip()}%"))
+
+            total = q.count()
+            offset = max(0, (page - 1) * page_size)
+            limit = max(1, page_size)
+            rows = q.order_by(MarketArtistORM.name).offset(offset).limit(limit).all()
+            for row in rows:
+                session.expunge(row)
+            return rows, total
+        finally:
+            if close_after:
+                session.close()
+
+    def get_artist(self, artist_id: int) -> Optional[MarketArtistORM]:
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            row = (
+                session.query(MarketArtistORM)
+                .options(joinedload(MarketArtistORM.tracks))
+                .filter(MarketArtistORM.id == artist_id)
+                .first()
+            )
+            if row is not None:
+                session.expunge(row)
+            return row
+        finally:
+            if close_after:
+                session.close()
+
+    def rename_artist(self, artist_id: int, *, name: str, name_norm: str) -> bool:
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            row = session.query(MarketArtistORM).filter(MarketArtistORM.id == artist_id).first()
+            if row is None:
+                return False
+            row.name = name
+            row.name_norm = name_norm
+            session.commit()
+            return True
+        except IntegrityError as exc:
+            session.rollback()
+            raise ValueError(f"Já existe um artista com o nome '{name}'") from exc
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            if close_after:
+                session.close()
+
+    def delete_artist(self, artist_id: int) -> bool:
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            row = session.query(MarketArtistORM).filter(MarketArtistORM.id == artist_id).first()
+            if row is None:
+                return False
+            session.delete(row)
+            session.commit()
+            return True
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            if close_after:
+                session.close()
+
+    def list_tracks_page(
+        self, *, artist_id: Optional[int], query: Optional[str], page: int, page_size: int
+    ) -> tuple[list[tuple[MarketTrackORM, MarketArtistORM]], int]:
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            q = session.query(MarketTrackORM, MarketArtistORM).join(
+                MarketArtistORM, MarketTrackORM.artist_id == MarketArtistORM.id
+            )
+            if artist_id is not None:
+                q = q.filter(MarketTrackORM.artist_id == artist_id)
+            if query:
+                q = q.filter(MarketTrackORM.title.ilike(f"%{query.strip()}%"))
+
+            total = q.count()
+            offset = max(0, (page - 1) * page_size)
+            limit = max(1, page_size)
+            rows = q.order_by(MarketTrackORM.title).offset(offset).limit(limit).all()
+            expunged_ids: set[int] = set()
+            for track, artist in rows:
+                session.expunge(track)
+                if id(artist) not in expunged_ids:
+                    session.expunge(artist)
+                    expunged_ids.add(id(artist))
+            return rows, total
+        finally:
+            if close_after:
+                session.close()
+
+    def get_track(self, track_id: int) -> Optional[MarketTrackORM]:
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            row = (
+                session.query(MarketTrackORM)
+                .options(joinedload(MarketTrackORM.artist), joinedload(MarketTrackORM.midi_files))
+                .filter(MarketTrackORM.id == track_id)
+                .first()
+            )
+            if row is not None:
+                session.expunge(row)
+            return row
+        finally:
+            if close_after:
+                session.close()
+
+    def update_track(
+        self,
+        track_id: int,
+        *,
+        title: Optional[str],
+        title_norm: Optional[str],
+        artist_id: Optional[int],
+    ) -> bool:
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            row = session.query(MarketTrackORM).filter(MarketTrackORM.id == track_id).first()
+            if row is None:
+                return False
+            if title is not None:
+                row.title = title
+                row.title_norm = title_norm
+            if artist_id is not None:
+                row.artist_id = artist_id
+            session.commit()
+            return True
+        except IntegrityError as exc:
+            session.rollback()
+            raise ValueError("Já existe uma música com esse título para o artista de destino") from exc
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            if close_after:
+                session.close()
+
+    def delete_track(self, track_id: int) -> bool:
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            row = session.query(MarketTrackORM).filter(MarketTrackORM.id == track_id).first()
+            if row is None:
+                return False
+            session.delete(row)
+            session.commit()
+            return True
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            if close_after:
+                session.close()
+
+    def delete_midi_file(self, file_id: int) -> bool:
+        session = self._get_session()
+        close_after = self._session is None
+        try:
+            row = session.query(MarketMidiFileORM).filter(MarketMidiFileORM.id == file_id).first()
+            if row is None:
+                return False
+            session.delete(row)
+            session.commit()
+            return True
         except Exception:
             session.rollback()
             raise

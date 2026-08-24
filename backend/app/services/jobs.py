@@ -56,6 +56,15 @@ class JobService:
                 MatchMarketMidiUseCase,
                 ResolveArtistCandidatesUseCase,
                 SaveMusicIdentityUseCase,
+                ListMarketArtistsUseCase,
+                GetMarketArtistUseCase,
+                UpdateMarketArtistUseCase,
+                DeleteMarketArtistUseCase,
+                ListMarketTracksUseCase,
+                GetMarketTrackUseCase,
+                UpdateMarketTrackUseCase,
+                DeleteMarketTrackUseCase,
+                DeleteMarketMidiFileUseCase,
             )
 
             self._search_use_case = SearchCandidatesUseCase(self)
@@ -72,6 +81,15 @@ class JobService:
             self._match_market_midi_use_case = MatchMarketMidiUseCase(self)
             self._resolve_artist_candidates_use_case = ResolveArtistCandidatesUseCase(self)
             self._save_music_identity_use_case = SaveMusicIdentityUseCase(self)
+            self._list_market_artists_use_case = ListMarketArtistsUseCase(self)
+            self._get_market_artist_use_case = GetMarketArtistUseCase(self)
+            self._update_market_artist_use_case = UpdateMarketArtistUseCase(self)
+            self._delete_market_artist_use_case = DeleteMarketArtistUseCase(self)
+            self._list_market_tracks_use_case = ListMarketTracksUseCase(self)
+            self._get_market_track_use_case = GetMarketTrackUseCase(self)
+            self._update_market_track_use_case = UpdateMarketTrackUseCase(self)
+            self._delete_market_track_use_case = DeleteMarketTrackUseCase(self)
+            self._delete_market_midi_file_use_case = DeleteMarketMidiFileUseCase(self)
         except Exception as e:
             logger.error(f"Failed to load use cases: {e}")
 
@@ -124,6 +142,12 @@ class JobService:
             page_size=page_size,
         )
 
+        from app.repositories.session_music_identity_repository import SessionMusicIdentityRepository
+
+        identities = await asyncio.to_thread(
+            SessionMusicIdentityRepository().get_many, [job.session_id for job in persisted_jobs]
+        )
+
         summaries = [
             SessionSummary(
                 session_id=job.session_id,
@@ -131,6 +155,8 @@ class JobService:
                 session_code=job.session_code,
                 track_title=job.selected_track.title if job.selected_track else None,
                 artist=job.selected_track.artist if job.selected_track else None,
+                identity_artist=identities[job.session_id].artist_text if job.session_id in identities else None,
+                identity_title=identities[job.session_id].title_text if job.session_id in identities else None,
                 status=job.state,
                 created_at=job.created_at,
                 updated_at=job.updated_at,
@@ -299,6 +325,33 @@ class JobService:
 
     def resolve_artist_candidates(self, query: str, *, limit: int = 5) -> list[ArtistCandidate]:
         return self._resolve_artist_candidates_use_case.execute(query, limit=limit)
+
+    def list_market_artists(self, *, query: Optional[str], page: int, page_size: int):
+        return self._list_market_artists_use_case.execute(query=query, page=page, page_size=page_size)
+
+    def get_market_artist(self, artist_id: int):
+        return self._get_market_artist_use_case.execute(artist_id)
+
+    def update_market_artist(self, artist_id: int, payload):
+        return self._update_market_artist_use_case.execute(artist_id, payload)
+
+    def delete_market_artist(self, artist_id: int) -> bool:
+        return self._delete_market_artist_use_case.execute(artist_id)
+
+    def list_market_tracks(self, *, artist_id: Optional[int], query: Optional[str], page: int, page_size: int):
+        return self._list_market_tracks_use_case.execute(artist_id=artist_id, query=query, page=page, page_size=page_size)
+
+    def get_market_track(self, track_id: int):
+        return self._get_market_track_use_case.execute(track_id)
+
+    def update_market_track(self, track_id: int, payload):
+        return self._update_market_track_use_case.execute(track_id, payload)
+
+    def delete_market_track(self, track_id: int) -> bool:
+        return self._delete_market_track_use_case.execute(track_id)
+
+    def delete_market_midi_file(self, file_id: int) -> bool:
+        return self._delete_market_midi_file_use_case.execute(file_id)
 
     def save_music_identity(self, session_id: str, payload: MusicIdentityRequest) -> MusicIdentity:
         return self._save_music_identity_use_case.execute(session_id, payload)
